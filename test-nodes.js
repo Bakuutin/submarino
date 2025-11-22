@@ -1,47 +1,35 @@
-import { NetworkNode } from './server.js';
+import { SubmarinoNode } from './submarino.js';
 
-// Set timeout to prevent hanging
-const TIMEOUT_MS = 30000; // 30 seconds
-const timeoutId = setTimeout(() => {
-  console.error('Test timed out after', TIMEOUT_MS, 'ms');
-  process.exit(1);
-}, TIMEOUT_MS);
+console.log('Creating nodes...');
+const node1 = new SubmarinoNode('.keys/node1');
 
-async function runTest() {
-  try {
-    console.log('Creating nodes...');
-    const node1 = new NetworkNode('.keys/node1');
-    const node2 = new NetworkNode('.keys/node2');
+await node1.start();
 
-    console.log('Starting node1...');
-    await node1.start();
-    console.log('Node1 started. Peer ID:', node1.getPeerId());
+console.log('Node 1 started');
+console.log('Node 1 peer id:', node1.node.peerId.toString());
 
-    console.log('Starting node2...');
-    await node2.start();
-    console.log('Node2 started. Peer ID:', node2.getPeerId());
 
-    // Wait a bit for nodes to discover each other
-    console.log('Waiting for nodes to discover each other...');
-    await new Promise(resolve => setTimeout(resolve, 2000));
 
-    console.log('Sending message from node1 to node2...');
-    const result = await node1.sendMessage([node2.getPeerId()], 'Hello, world!');
-    console.log('Send result:', JSON.stringify(result, null, 2));
+const node2 = new SubmarinoNode('.keys/node2');
+await node2.start();
 
-    console.log('Stopping node1...');
-    await node1.stop();
-    console.log('Stopping node2...');
-    await node2.stop();
+console.log('Node 2 started');
+console.log('Node 2 peer id:', node2.node.peerId.toString());
 
-    clearTimeout(timeoutId);
-    console.log('Test completed successfully');
-    process.exit(0);
-  } catch (error) {
-    clearTimeout(timeoutId);
-    console.error('Test failed:', error);
-    process.exit(1);
+console.log('Checking if nodes are connected...');
+while (true) {
+
+  const n1Peers = Array.from(node1.knownPeers.keys()).map(p => p.toString());
+  const n2Peers = Array.from(node2.knownPeers.keys()).map(p => p.toString());
+  if (n1Peers.includes(node2.node.peerId.toString()) && n2Peers.includes(node1.node.peerId.toString())) {
+    break;
   }
+  console.log('Waiting for nodes to connect...');
+  await new Promise(resolve => setTimeout(resolve, 1000));
 }
 
-runTest(); 
+console.log('Nodes are connected, sending message...');
+
+await node1.sendMessage(node2.node.peerId.toString(), 'Hello from node1!');
+
+

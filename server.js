@@ -6,8 +6,9 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod'
 import { createLibp2p } from 'libp2p'
 import { tcp } from '@libp2p/tcp'
-import { noise } from '@libp2p/noise'
-import { yamux } from '@libp2p/yamux'
+import { yamux } from '@chainsafe/libp2p-yamux'
+import { noise } from '@chainsafe/libp2p-noise'
+import { ping } from '@libp2p/ping'
 import { identify } from '@libp2p/identify'
 import { mdns } from '@libp2p/mdns'
 import { peerIdFromString } from '@libp2p/peer-id'
@@ -29,52 +30,6 @@ const server = new McpServer(
   }
 )
 
-// Inbox implementation with in-memory storage
-const inbox = {
-  messages: new Map(),
-
-  addMessage({ from, to, content }) {
-    const id = `${Date.now()}-${randomBytes(8).toString('hex')}`
-    const message = {
-      id,
-      from,
-      to,
-      content,
-      timestamp: Date.now(),
-      read: false,
-    }
-    this.messages.set(id, message)
-    return message
-  },
-
-  getMessages(recipient, unreadOnly = false) {
-    const messages = Array.from(this.messages.values())
-      .filter(msg => msg.to === recipient)
-      .filter(msg => !unreadOnly || !msg.read)
-      .sort((a, b) => b.timestamp - a.timestamp)
-    return messages
-  },
-
-  getMessage(id) {
-    return this.messages.get(id)
-  },
-
-  markAsRead(ids) {
-    let count = 0
-    for (const id of ids) {
-      const message = this.messages.get(id)
-      if (message && !message.read) {
-        message.read = true
-        count++
-      }
-    }
-    return count
-  },
-
-  clear() {
-    this.messages.clear()
-  },
-}
 
 class NetworkNode {
   constructor(keyPath) {
@@ -82,7 +37,7 @@ class NetworkNode {
     this.node = null
     this.contacts = new Map()
     this.protocolName = '/submarino/1.0.0'
-    this.messageHandlers = new Map()
+    this.inbox = [];
   }
 
   async start() {
@@ -114,42 +69,50 @@ class NetworkNode {
       },
       transports: [tcp()],
       streamMuxers: [yamux()],
-      connectionEncryption: [noise()],
-      services: {
-        identify: identify(),
-      },
+      connectionEncrypters: [noise()],
       peerDiscovery: [
         mdns({
-          interval: 2e3,
+          interval: 20e3,
         }),
       ],
     })
 
-    // Set up custom protocol handler
+    this.node.addEventListener('peer:connect', (evt) => {
+      console.log('connected to peer:', evt.detail.toString())
+    })
+
+    // auto-dial peers we discover via mdns so they appear in the peer list quickly
+    this.node.addEventListener('peer:discovery', async (evt) => {
+      const peerInfo = evt.detail
+      const peerIdStr = peerInfo?.id?.toString?.() ?? peerInfo?.toString?.()
+      console.log('discovered peer via mdns:', peerIdStr)
+      try {
+        if (peerInfo?.multiaddrs?.length) {
+          await this.node.dial(peerInfo.multiaddrs)
+        } else if (peerInfo?.id) {
+          await this.node.dial(peerInfo.id)
+        }
+      } catch (err) {
+        console.warn('failed to dial discovered peer', peerIdStr)
+      }
+    })
+
     await this.node.handle(this.protocolName, async ({ stream, connection }) => {
       const peerId = connection.remotePeer.toString()
       
       try {
         const chunks = []
-        for await (const chunk of stream.source) {
+        for await (const chunk of stream) {
           chunks.push(chunk)
         }
         
         const data = Buffer.concat(chunks).toString('utf-8')
         const message = JSON.parse(data)
         
-        // Store incoming message in inbox
-        inbox.addMessage({
-          from: message.from || peerId,
-          to: this.getPeerId(),
-          content: message.content,
+        this.inbox.push({
+          from: peerId,
+          content: message,
         })
-        
-        // Call registered handlers
-        const handler = this.messageHandlers.get(peerId)
-        if (handler) {
-          handler(message)
-        }
       } catch (error) {
         console.error('Error handling incoming message:', error)
       }
@@ -157,6 +120,11 @@ class NetworkNode {
 
     // Start the node
     await this.node.start()
+
+    console.log('listening on addresses:')
+    this.node.getMultiaddrs().forEach((addr) => {
+      console.log(addr.toString())
+    })
     
     // Listen for peer connections
     this.node.addEventListener('peer:connect', (evt) => {
@@ -200,6 +168,7 @@ class NetworkNode {
     for (const peerIdStr of to) {
       try {
         const peerId = peerIdFromString(peerIdStr)
+
         
         // Check if peer is connected
         if (!this.node.getPeers().some(p => p.toString() === peerIdStr)) {
@@ -218,9 +187,11 @@ class NetworkNode {
           timestamp: Date.now(),
         })
         
-        await stream.sink(async function* () {
-          yield new TextEncoder().encode(messageData)
-        }())
+        const payload = new TextEncoder().encode(messageData)
+        if (!stream.send(payload)) {
+          await new Promise((resolve) => stream.addEventListener('drain', resolve, { once: true }))
+        }
+        await stream.close()
 
         messageIds.push(messageId)
         results.push({
@@ -278,15 +249,6 @@ class NetworkNode {
     return this.contacts.delete(peerId)
   }
 }
-
-// Initialize network and inbox
-const keyPath = process.env.KEY_PATH || join(process.cwd(), '.keys')
-const network = new NetworkNode(keyPath)
-
-// Start network asynchronously
-network.start().catch(err => {
-  console.error('Failed to start network:', err)
-})
 
 // Register tools using server.registerTool
 server.registerTool(

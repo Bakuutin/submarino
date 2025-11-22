@@ -27,17 +27,25 @@
     "node": ">=22.0.0"
   },
   "dependencies": {
+    "@chainsafe/libp2p-noise": "^17.0.0",
+    "@chainsafe/libp2p-yamux": "^8.0.1",
+    "@libp2p/crypto": "^5.1.13",
     "@libp2p/identify": "latest",
     "@libp2p/mdns": "latest",
     "@libp2p/mplex": "latest",
     "@libp2p/noise": "latest",
     "@libp2p/peer-id": "latest",
     "@libp2p/peer-id-factory": "latest",
+    "@libp2p/peer-store": "^12.0.9",
+    "@libp2p/ping": "^3.0.9",
     "@libp2p/tcp": "latest",
     "@libp2p/yamux": "^8.0.1",
     "@modelcontextprotocol/sdk": "^1.0.4",
+    "@multiformats/multiaddr": "^13.0.1",
+    "@nodeutils/defaults-deep": "^1.1.0",
     "better-sqlite3": "^12.4.5",
     "libp2p": "latest",
+    "multiaddr": "^10.0.1",
     "zod": "^3.22.4"
   },
   "devDependencies": {
