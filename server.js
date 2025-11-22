@@ -120,7 +120,7 @@ class NetworkNode {
       },
       peerDiscovery: [
         mdns({
-          interval: 20e3, // 20 seconds
+          interval: 2e3,
         }),
       ],
     })
@@ -213,7 +213,7 @@ class NetworkNode {
         // Send message
         const messageId = `${Date.now()}-${randomBytes(8).toString('hex')}`
         const messageData = JSON.stringify({
-          ...message,
+          message,
           messageId,
           timestamp: Date.now(),
         })
@@ -712,5 +712,5 @@ server.registerTool(
   }
 )
 
-export { server }
+export { server, NetworkNode }
 
