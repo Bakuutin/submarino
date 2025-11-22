@@ -1,0 +1,5 @@
+Commander: Morning standup. We have two firebreak tasks waiting.
+Ops: The first one is multiplying the satellite imagery counts by 4 to estimate coverage.
+Analyst: Multiplier agent already did a dry run last night and is ready for new operands.
+Commander: Second task is summing the confirmed drop pods. Actor should coordinate once multiplier replies.
+Ops: Noted. Actor will wait for multiplier to return before pinging the adder.

@@ -7,6 +7,7 @@ requires-python = ">=3.10"
 dependencies = [
   "llama-index-core>=0.11.14,<0.12",
   "llama-index-embeddings-huggingface>=0.2.3,<0.3",
+  "llama-index-llms-openai>=0.2.5,<0.3",
   "python-dotenv>=1.0.1,<2.0.0",
 ]
 

@@ -1,0 +1,27 @@
+[
+  {
+    "speaker": "Commander",
+    "timestamp": "unknown",
+    "text": "Morning standup. We have two firebreak tasks waiting."
+  },
+  {
+    "speaker": "Ops",
+    "timestamp": "unknown",
+    "text": "The first one is multiplying the satellite imagery counts by 4 to estimate coverage."
+  },
+  {
+    "speaker": "Analyst",
+    "timestamp": "unknown",
+    "text": "Multiplier agent already did a dry run last night and is ready for new operands."
+  },
+  {
+    "speaker": "Commander",
+    "timestamp": "unknown",
+    "text": "Second task is summing the confirmed drop pods. Actor should coordinate once multiplier replies."
+  },
+  {
+    "speaker": "Ops",
+    "timestamp": "unknown",
+    "text": "Noted. Actor will wait for multiplier to return before pinging the adder."
+  }
+]

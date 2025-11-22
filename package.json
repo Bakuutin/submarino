@@ -13,7 +13,8 @@
     "test:watch": "jest --watch",
     "test:messaging": "tsx src/test/test-messaging.ts",
     "clean": "rm -rf dist",
-    "demo:agents": "node simple-agents.js"
+    "demo:agents": "node simple-agents.js",
+    "demo:agents:dry": "node scripts/agent-registry.js"
   },
   "keywords": [
     "libp2p",
