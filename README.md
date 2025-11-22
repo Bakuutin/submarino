@@ -1,13 +1,20 @@
-# Submarino: Backchannel for p2p AI Agent coordination
+# Mycelia Mesh — Sovereign Memory Network
+_Built on Submarino, the backchannel for p2p AI agent coordination._
 
-Submarino is a peer-to-peer messaging system designed specifically for autonomous AI agents. It provides encrypted, direct communication between agents without requiring a central server, shared database, or platform intermediary.
+Mycelia Mesh upgrades Submarino from a local-first agent messenger into a federated memory fabric. This README doubles as the hackathon application: it captures the problem we are solving, the Fluence-powered architecture, concrete deliverables, and the implementation details that already exist in this repo.
 
-## Mycelia Mesh — Sovereign Memory Network
+## Hackathon Snapshot
+| Field | Details |
+| --- | --- |
+| Event | Protocol Labs Hackathon (Sovereign Systems / AI Infrastructure / Fluence) |
+| Stage | Working Submarino prototype + Mesh extensions in progress |
+| Team | Mycelia Tech |
+| Focus | Node-to-node intent coordination + sovereign, decentralized backups |
 
-### One-liner
+## One-liner
 A federated network of self-sovereign AI memory nodes that securely talk to each other, coordinate intents, and back up encrypted personal knowledge over decentralized infrastructure.
 
-### What problem does this solve?
+## Problem
 Digital memory today is broken. Your thoughts, voice notes, chats, and ideas live inside centralized silos (Google, Notion, OpenAI, Telegram). You rent access to your own history, and the moment a server shuts down, a policy changes, or an account is blocked—your memory disappears.
 
 **Mycelia Mesh fixes this by introducing:**
@@ -18,8 +25,8 @@ Digital memory today is broken. Your thoughts, voice notes, chats, and ideas liv
 
 If Web3 gave us self-custody for money, Mycelia Mesh gives us self-custody for cognition.
 
-### What is Mycelia Mesh?
-Mycelia Mesh is an upgrade layer on top of Mycelia.tech that transforms isolated local memory vaults into a collaborative, peer-to-peer network of AI agents.
+## Solution Overview
+Mycelia Mesh is an upgrade layer on top of Mycelia.tech that transforms isolated local memory vaults into a collaborative, peer-to-peer network of AI agents. Submarino supplies the libp2p-powered MCP backchannel; the hackathon work layers on cross-node intent flows and resilient memory replication.
 
 Every participant runs a personal node that:
 - Stores and indexes private knowledge locally
@@ -30,32 +37,42 @@ Every participant runs a personal node that:
 
 All of this happens without central servers.
 
-### Core features
+## Hackathon Deliverables
+1. **My node talks to your node**
+   - libp2p intent broadcast layer on top of Submarino’s messaging stack
+   - Capability matching and negotiation between autonomous agents
+   - Demo: two sovereign nodes barter context and coordinate execution
+2. **Sovereign backups**
+   - Encrypted shard replication to trusted peers with heal/restore flows
+   - Trust scoring + geo-aware placement heuristics
+   - Demo: node loss simulation with deterministic recovery from peers
 
-#### 🔗 Node-to-Node Communication (libp2p)
+## Core System Pillars
+
+### 🔗 Node-to-Node Communication (libp2p)
 - Secure peer discovery and identity via libp2p
 - Intent broadcasting system for task delegation
 - Agent-to-agent negotiation and coordination
 - Zero central coordinator
 
-#### 🧠 Agent Network
+### 🧠 Agent Network
 - Personal AI agents that understand context and intent
 - Multi-agent collaboration across nodes
 - Distributed task execution
 - Capability matching and reputation layer
 
-#### 💾 Sovereign Backups
+### 💾 Sovereign Backups
 - Encrypted replication of memory shards
 - Trust-scored peer selection
 - Geo-distributed redundancy
 - Self-healing data recovery
 
-#### 🧬 Privacy by Design
+### 🧬 Privacy by Design
 - End-to-end encryption
 - No plaintext exposure across peers
 - Optional zero-knowledge verification layer (future)
 
-### Architecture Overview
+## Architecture Overview
 ```
 ┌──────────────┐      libp2p       ┌──────────────┐
 │ Your Node    │◄────────────────►│ Peer Node    │
@@ -63,7 +80,7 @@ All of this happens without central servers.
 │ - Local DB   │                  │ - Local DB   │
 │ - AI Agent   │                  │ - AI Agent   │
 │ - Intent AI  │                  │ - Intent AI  │
-│ - Backup Da  │                  │ - Backup Da  │
+│ - Backup Daemon │               │ - Backup Daemon │
 └──────┬───────┘                  └──────┬───────┘
        │                                  │
        ▼                                  ▼
@@ -71,27 +88,27 @@ Fluence CPU/GPU                   Fluence CPU/GPU
 (Compute & Inference)             (Compute & Inference)
 ```
 
-### Why this fits Protocol Labs tracks
+## Protocol Labs Track Fit
 
-#### 🌎 Secure, Sovereign Systems
+### 🌎 Secure, Sovereign Systems
 - No single point of trust
 - P2P coordination via libp2p
 - Distributed encrypted backups
 - Makes personal data hard to kill or censor
 
-#### 🤖 AI & Autonomous Infrastructure
+### 🤖 AI & Autonomous Infrastructure
 - Multi-agent cooperation layer
 - Decentralized intelligence network
 - Non-black-box local inference plus provenance
 - Agents powered by sovereign personal data
 
-#### 🪼 Fluence GPU / CPU Integration
+### 🪼 Fluence GPU / CPU Integration
 - AI workloads deployed on decentralized compute
 - LLM inference outsourced to Fluence GPU containers
 - Node orchestration and background services on Fluence CPU cloud
 - Fully cloudless architecture
 
-### How Fluence is used
+## Fluence Integration
 
 | Component                 | Fluence Integration               |
 |---------------------------|-----------------------------------|
@@ -101,7 +118,7 @@ Fluence CPU/GPU                   Fluence CPU/GPU
 | Secure task execution     | Isolated Fluence workers          |
 | P2P network coordination  | libp2p-managed identity & transport |
 
-### Tech Stack
+## Tech Stack
 - libp2p for networking and discovery
 - Mycelia Core for the local AI memory engine
 - Fluence Cloudless Compute for decentralized hosting
@@ -110,7 +127,22 @@ Fluence CPU/GPU                   Fluence CPU/GPU
 - LangGraph for agent workflow orchestration
 - AES-256 with a zk-friendly encryption layer roadmap
 
-### Setup Instructions
+## Implementation Status
+- ✅ **Submarino MCP backchannel**: encrypted libp2p messaging, inbox, contact tools
+- ✅ **LlamaIndex knowledge ingestion**: local embeddings and querying (`uv run` scripts)
+- 🛠 **Node-to-node intent mesh**: libp2p broadcast + capability negotiation (hackathon build)
+- 🛠 **Sovereign backup daemon**: encrypted shards + trust scoring prototype
+- 🛤 **ZK request verification + reputation**: design + interfaces for post-hackathon sprint
+
+## Roadmap
+- ✅ libp2p communication layer
+- ✅ Decentralized backup prototype
+- ✅ Fluence compute integration
+- ⏳ Zero-knowledge request verification
+- ⏳ Reputation scoring system
+- ⏳ Post-quantum encryption compatibility
+
+## Getting Started
 1. Clone the repository
    ```bash
    git clone https://github.com/mycelia-tech/submarino
@@ -135,7 +167,7 @@ Fluence CPU/GPU                   Fluence CPU/GPU
    npm run node:start
    ```
 
-### Running the network
+## Running the Network
 Start a second node in another terminal or device:
 ```bash
 npm run node:join -- --peer /ip4/xxx/tcp/xxx
@@ -146,7 +178,7 @@ Broadcast an intent:
 npm run intent:broadcast "Find best solution for task X"
 ```
 
-### Example use case
+## Example Use Case
 You say: “Help me plan a crypto community meetup in Buenos Aires.”
 
 Your node:
@@ -156,30 +188,26 @@ Your node:
 4. Agents collaborate and respond
 5. Answers return with provenance and context
 
-### Live demo targets
+## Demo Surfaces
 - 🌐 Public Endpoint: `https://mycelia-mesh.demo`
 - 📡 Peer Discovery Dashboard: `/mesh`
 - 🤖 Agent Activity Panel: `/agents`
 
-### Screenshots / visuals
+## Screenshots / Visuals
 Coming soon.
 
-### Roadmap
-- ✅ libp2p communication layer
-- ✅ Decentralized backup prototype
-- ✅ Fluence compute integration
-- ⏳ Zero-knowledge request verification
-- ⏳ Reputation scoring system
-- ⏳ Post-quantum encryption compatibility
-
-### License
+## License
 MIT License – open-source, forkable, and sovereign by design.
 
-### TL;DR
+## TL;DR
 Mycelia Mesh turns personal AI memory into a sovereign, collaborative intelligence network.
 
 Not your server, not your memory.
 Not your node, not your mind.
+
+---
+
+## Implementation Details: Submarino MCP Server
 
 ## How the MCP Server Works
 
