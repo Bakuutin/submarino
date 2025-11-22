@@ -136,7 +136,7 @@ async getOrCreatePrivateKey() {
   const keyBytes = privateKeyToProtobuf(privateKey)
   const payload = {
     id: peerId.toString(),              // for convenience/debugging
-    privKey: keyBytes.toString('base64')
+    privKey: Buffer.from(keyBytes).toString('base64')
   }
 
   await writeFile(keyFile, JSON.stringify(payload, null, 2), 'utf8')
