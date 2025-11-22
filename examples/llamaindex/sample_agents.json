@@ -1,0 +1,26 @@
+[
+  {
+    "title": "Actor Agent",
+    "role": "Coordinator",
+    "body": "The Actor agent receives requests from outside the network, tracks outstanding task IDs, and fans out work to specialized peers. It never performs math on its own. Instead, it records dependencies, waits for replies, and assembles the final response that gets returned to the requester.",
+    "strengths": [
+      "Maintains pending task state with timeouts",
+      "Orchestrates multi-step plans that depend on previous results",
+      "Knows the peer IDs for the current multiplier and adder agents"
+    ]
+  },
+  {
+    "title": "Multiplier Agent",
+    "role": "Specialist",
+    "body": "The Multiplier agent advertises the capability `multiply` and only accepts tasks containing exactly two operands. It connects back to the Actor to return the numeric product, including a trace so downstream agents can see the path a value followed.",
+    "capability": "multiply",
+    "operands": 2
+  },
+  {
+    "title": "Adder Agent",
+    "role": "Specialist",
+    "body": "The Adder agent exposes the `sum` capability and reduces any number of operands by repeated addition. It is typically used after the multiplier to add offsets or to combine intermediate values coming from other peers.",
+    "capability": "sum",
+    "operands": "n"
+  }
+]

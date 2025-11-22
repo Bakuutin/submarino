@@ -122,3 +122,45 @@ PORT=8080 KEY_PATH=/path/to/keys node index.js
 ```
 
 
+## Examples
+
+### Simple agent collaboration demo
+
+Spin up the actor + multiplier + adder example with a single command:
+
+```bash
+npm run demo:agents
+```
+
+The script launches three peers, shares their multiaddrs, and has the actor agent
+dispatch a multiply task followed by a sum task. Check the console log for the
+request IDs and final result (`6 * 7 + 5 = 47`). The agents reuse the key
+material in `.keys/`, so you can run the demo repeatedly without re-pairing.
+
+### LlamaIndex knowledge base
+
+The repo now ships with a lightweight ingestion/query helper that persists a
+vector store under `.llamaindex/agents`. The default dataset is
+`examples/llamaindex/sample_agents.json`, which describes the actor, multiplier,
+and adder roles used in the demo above.
+
+1. **Ingest data** (use `--reset` the first time to start clean):
+
+   ```bash
+   uv run scripts/llamaindex_ingest.py ingest --reset
+   ```
+
+   - Add `-i path/to/extra.json` to layer in your own docs (JSON or plain text).
+   - The script uses the local `BAAI/bge-small-en-v1.5` embedding model from
+     Hugging Face, so the first run may download weights.
+
+2. **Query the store** with natural-language prompts:
+
+   ```bash
+   uv run scripts/llamaindex_ingest.py query "Which agent handles multiplication?"
+   ```
+
+   The command prints a concise answer plus the top matching source nodes. Feel
+   free to tweak `--top-k` or edit `scripts/llamaindex_ingest.py` to plug in
+   your preferred LLM for richer responses. The persisted index lives in
+   `.llamaindex/agents`, so you can delete or version that directory as needed.
