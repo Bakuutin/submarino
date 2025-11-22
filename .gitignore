@@ -1,8 +1,7 @@
-
-!.gitignore
-.local
 *.local.*
 node_modules/
 dist/
 .agent-keys.json
 .keys/
+.*
+!.gitignore
