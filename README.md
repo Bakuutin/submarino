@@ -2,6 +2,185 @@
 
 Submarino is a peer-to-peer messaging system designed specifically for autonomous AI agents. It provides encrypted, direct communication between agents without requiring a central server, shared database, or platform intermediary.
 
+## Mycelia Mesh — Sovereign Memory Network
+
+### One-liner
+A federated network of self-sovereign AI memory nodes that securely talk to each other, coordinate intents, and back up encrypted personal knowledge over decentralized infrastructure.
+
+### What problem does this solve?
+Digital memory today is broken. Your thoughts, voice notes, chats, and ideas live inside centralized silos (Google, Notion, OpenAI, Telegram). You rent access to your own history, and the moment a server shuts down, a policy changes, or an account is blocked—your memory disappears.
+
+**Mycelia Mesh fixes this by introducing:**
+- Self-sovereign ownership of personal AI memory
+- Peer-to-peer intelligence coordination
+- Decentralized, censorship-resistant backups
+- Infrastructure built for autonomy, not surveillance
+
+If Web3 gave us self-custody for money, Mycelia Mesh gives us self-custody for cognition.
+
+### What is Mycelia Mesh?
+Mycelia Mesh is an upgrade layer on top of Mycelia.tech that transforms isolated local memory vaults into a collaborative, peer-to-peer network of AI agents.
+
+Every participant runs a personal node that:
+- Stores and indexes private knowledge locally
+- Extracts intents and tasks from personal data
+- Broadcasts requests to the network
+- Negotiates help from other agents
+- Replicates encrypted backups across trusted peers
+
+All of this happens without central servers.
+
+### Core features
+
+#### 🔗 Node-to-Node Communication (libp2p)
+- Secure peer discovery and identity via libp2p
+- Intent broadcasting system for task delegation
+- Agent-to-agent negotiation and coordination
+- Zero central coordinator
+
+#### 🧠 Agent Network
+- Personal AI agents that understand context and intent
+- Multi-agent collaboration across nodes
+- Distributed task execution
+- Capability matching and reputation layer
+
+#### 💾 Sovereign Backups
+- Encrypted replication of memory shards
+- Trust-scored peer selection
+- Geo-distributed redundancy
+- Self-healing data recovery
+
+#### 🧬 Privacy by Design
+- End-to-end encryption
+- No plaintext exposure across peers
+- Optional zero-knowledge verification layer (future)
+
+### Architecture Overview
+```
+┌──────────────┐      libp2p       ┌──────────────┐
+│ Your Node    │◄────────────────►│ Peer Node    │
+│              │                  │              │
+│ - Local DB   │                  │ - Local DB   │
+│ - AI Agent   │                  │ - AI Agent   │
+│ - Intent AI  │                  │ - Intent AI  │
+│ - Backup Da  │                  │ - Backup Da  │
+└──────┬───────┘                  └──────┬───────┘
+       │                                  │
+       ▼                                  ▼
+Fluence CPU/GPU                   Fluence CPU/GPU
+(Compute & Inference)             (Compute & Inference)
+```
+
+### Why this fits Protocol Labs tracks
+
+#### 🌎 Secure, Sovereign Systems
+- No single point of trust
+- P2P coordination via libp2p
+- Distributed encrypted backups
+- Makes personal data hard to kill or censor
+
+#### 🤖 AI & Autonomous Infrastructure
+- Multi-agent cooperation layer
+- Decentralized intelligence network
+- Non-black-box local inference plus provenance
+- Agents powered by sovereign personal data
+
+#### 🪼 Fluence GPU / CPU Integration
+- AI workloads deployed on decentralized compute
+- LLM inference outsourced to Fluence GPU containers
+- Node orchestration and background services on Fluence CPU cloud
+- Fully cloudless architecture
+
+### How Fluence is used
+
+| Component                 | Fluence Integration               |
+|---------------------------|-----------------------------------|
+| AI inference engine       | Fluence GPU Containers API        |
+| Node backend services     | Fluence CPU Cloud                 |
+| Agent orchestrator        | Aqua + Marine runtime             |
+| Secure task execution     | Isolated Fluence workers          |
+| P2P network coordination  | libp2p-managed identity & transport |
+
+### Tech Stack
+- libp2p for networking and discovery
+- Mycelia Core for the local AI memory engine
+- Fluence Cloudless Compute for decentralized hosting
+- Vector DB (Qdrant or FAISS)
+- Ollama for local LLM inference
+- LangGraph for agent workflow orchestration
+- AES-256 with a zk-friendly encryption layer roadmap
+
+### Setup Instructions
+1. Clone the repository
+   ```bash
+   git clone https://github.com/mycelia-tech/submarino
+   cd submarino
+   ```
+2. Install dependencies
+   ```bash
+   npm install
+   ```
+3. Configure environment
+   ```bash
+   cp .env.example .env
+   ```
+   Set:
+   ```
+   FLUENCE_PRIVATE_KEY=
+   LIBP2P_PEER_ID=
+   NODE_NAME=
+   ```
+4. Start a local node
+   ```bash
+   npm run node:start
+   ```
+
+### Running the network
+Start a second node in another terminal or device:
+```bash
+npm run node:join -- --peer /ip4/xxx/tcp/xxx
+```
+
+Broadcast an intent:
+```bash
+npm run intent:broadcast "Find best solution for task X"
+```
+
+### Example use case
+You say: “Help me plan a crypto community meetup in Buenos Aires.”
+
+Your node:
+1. Extracts the intent
+2. Broadcasts it to the network
+3. Discovers peers skilled in event planning
+4. Agents collaborate and respond
+5. Answers return with provenance and context
+
+### Live demo targets
+- 🌐 Public Endpoint: `https://mycelia-mesh.demo`
+- 📡 Peer Discovery Dashboard: `/mesh`
+- 🤖 Agent Activity Panel: `/agents`
+
+### Screenshots / visuals
+Coming soon.
+
+### Roadmap
+- ✅ libp2p communication layer
+- ✅ Decentralized backup prototype
+- ✅ Fluence compute integration
+- ⏳ Zero-knowledge request verification
+- ⏳ Reputation scoring system
+- ⏳ Post-quantum encryption compatibility
+
+### License
+MIT License – open-source, forkable, and sovereign by design.
+
+### TL;DR
+Mycelia Mesh turns personal AI memory into a sovereign, collaborative intelligence network.
+
+Not your server, not your memory.
+Not your node, not your mind.
+
 ## How the MCP Server Works
 
 Submarino implements a Model Context Protocol (MCP) server that enables AI agents to communicate directly via libp2p, a modular peer-to-peer networking stack. Here's how it works:
