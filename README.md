@@ -1,166 +1,110 @@
-# Submarino: Backchannel for p2p AI Agent coordination
+# HiveMind — Sovereign Memory Mesh
+_ETHGlobal Buenos Aires 2025 build by Mycelia Tech_
 
-Submarino is a peer-to-peer messaging system designed specifically for autonomous AI agents. It provides encrypted, direct communication between agents without requiring a central server, shared database, or platform intermediary.
+HiveMind turns personal AI memory vaults into a coordinated, sovereign network. Each node runs a local-first MCP server, speaks libp2p, and backs up encrypted knowledge shards across trusted peers—no central coordinator, no forced cloud tenancy.
 
-## How the MCP Server Works
+## Hackathon
+| Field | Details |
+| --- | --- |
+| Goal | Ship node-to-node intent coordination |
+| Stack | Working MCP comms + ingestion; Mesh coordination |
 
-Submarino implements a Model Context Protocol (MCP) server that enables AI agents to communicate directly via libp2p, a modular peer-to-peer networking stack. Here's how it works:
+## Problem
+Digital memory today is broken. Your thoughts, voice notes, chats, and ideas live inside centralized
+silos (Google, Notion, OpenAI, Telegram). You rent access to your own history, and the moment a
+server shuts down, a policy changes, or an account is blocked—your memory disappears.
+**Mycelia Mesh fixes this by introducing:**
+- Self-sovereign ownership of personal AI memory
+- Peer-to-peer intelligence coordination
+- Decentralized, censorship-resistant backups
+- Infrastructure built for autonomy, not surveillance
+## Why HiveMind?
+- **Memory is siloed**: Chats, notes, and voice memos sit in accounts you rent.
+- **Context disappears**: You remember a conversation, not the details that matter.
+- **Central servers fail**: A TOS change can delete your cognitive history overnight.
 
-### Architecture
+## Our Answer
+HiveMind links local AI memories into a federated mesh:
+- Nodes store and index private data locally
+- Intents are broadcast over libp2p for cross-node help
+- Replicate itself as encrypted shards across trusted peers
+- Decentralized compute handles GPU/CPU
 
-1. **MCP Server** (`server.js`):
-   - Implements the MCP protocol using `@modelcontextprotocol/sdk`
-   - Exposes tools that AI agents can call to send messages, check inbox, and manage contacts
-   - Runs on an Express HTTP server that accepts POST requests at `/mcp`
+## Core Capabilities
+- **🔗 Node-to-node comms**: libp2p discovery, Noise-encrypted streams, MCP tool surface.
+- **🧠 Agent cooperation**: Intent extraction, capability matching, distributed execution.
+- **💾 Sovereign backups**: Sharded, encrypted replication with trust/geo heuristics.
 
-2. **Network Node** (`NetworkNode` class):
-   - Uses libp2p to create a peer-to-peer network node
-   - Handles peer discovery via mDNS (multicast DNS) for local network discovery
-   - Manages peer connections, message routing, and protocol handling
-   - Stores peer identity in `.keys/peer-id.json` (persistent across restarts)
 
-3. **Inbox System**:
-   - In-memory message storage (Map-based)
-   - Tracks messages with read/unread status
-   - Filters messages by recipient and read status
+## Architecture
+```
+┌──────────────┐      libp2p       ┌──────────────┐
+│ Your Node    │◄────────────────►│ Peer Node    │
+│              │                  │              │
+│ - Local DB   │                  │ - Local DB   │
+│ - AI Agent   │                  │ - AI Agent   │
+│ - Intent AI  │                  │ - Intent AI  │
+│ - Backup     │                  │ - Backup     │
+└──────┬───────┘                  └──────┬───────┘
+       │                                  │
+       ▼                                  ▼
+   Fluence CPU/GPU                  Fluence CPU/GPU
+(compute + inference)            (compute + inference)
+```
 
-4. **Available MCP Tools**:
-   - `send_message`: Send messages to one or more peer IDs
-   - `check_inbox`: Retrieve messages for a recipient (with optional unread-only filter)
-   - `create_contact`: Add a peer ID as a contact
-   - `get_contact`: Retrieve contact information by peer ID
-   - `list_contacts`: List all saved contacts
-   - `update_contact`: Update contact name or metadata
-   - `delete_contact`: Remove a contact
-   - `get_my_id`: Get the local peer ID and connection status
+## Track Alignment
+- **Sovereign Systems**: No central coordinator; peers control identity, storage, and routing.
+- **AI Infrastructure**: Multi-agent workflows + local LLMs.
 
-### Communication Flow
+## Current Progress
+- ✅ MCP server (`server.js`) with libp2p messaging, inbox, contact management.
+- ✅ Knowledge ingestion/query via `scripts/llamaindex_ingest.py` (uses `uv run`).
+- ✅ Demo agents (`npm run demo:agents`) showing task chaining across peers.
+- 🛠 Intent mesh broadcaster + capability negotiation layer.
+- 🛠 Encrypted backup daemon with trust scoring + heal/restore flows.
 
-1. **Initialization**: When the server starts, it creates or loads a peer ID and starts the libp2p node
-2. **Peer Discovery**: Uses mDNS to discover other Submarino nodes on the local network
-3. **Message Sending**: When `send_message` is called:
-   - The tool attempts to connect to the target peer(s)
-   - Opens a stream using the `/submarino/1.0.0` protocol
-   - Sends the message as JSON over the encrypted stream
-   - Stores a copy in the local inbox
-4. **Message Receiving**: When a message arrives:
-   - The protocol handler receives it on the `/submarino/1.0.0` stream
-   - Parses the JSON message
-   - Stores it in the inbox for the recipient
-   - Triggers any registered message handlers
 
-### Security Features
 
-- **Encryption**: All connections use Noise protocol for encryption
-- **Authentication**: Peer IDs are cryptographically generated (Ed25519)
-- **Direct Communication**: No central server - messages go directly between peers
 
-## Installation & Setup
-
+## Setup
 ```bash
+git clone https://github.com/mycelia-tech/submarino
+cd submarino
 npm install
+cp .env.example .env
 ```
+Set `PORT`, `KEY_PATH`, and any Fluence/libp2p secrets as needed.
 
-### Step 2: Start the MCP Server
-
-The server will start on port 4242 by default (configurable via `PORT` environment variable):
-
+### Run the MCP node
 ```bash
-
-#  directly with node
-node index.js
+npm run dev            # ts-node dev server
+npm run build && npm start   # compile to dist/ then serve
 ```
 
-The server will:
-- Create a peer ID and save it to `.keys/peer-id.json` (if it doesn't exist)
-- Start listening on `http://localhost:4242/mcp`
-- Begin peer discovery via mDNS
-- Log the server URL and your peer ID
-
-## n8n Setup
-
-### Step 1: Configure MCP Server in n8n
-
-1. Open your n8n instance
-2. Navigate to **Settings** → **Model Context Protocol** (or MCP settings)
-3. Add a new MCP server with:
-   - **URL**: `http://host.docker.internal:4242/mcp` (or `http://localhost:4242/mcp` if not using Docker)
-
-### Step 2: Configure OpenRouter with Llama 3b
-
-1. In n8n, go to **Credentials** → **Add Credential**
-2. Select **OpenRouter API**
-3. Enter your OpenRouter API key
-4. In workflow, use **OpenAI** node with:
-   - **Model**: `meta-llama/llama-3.2-3b-instruct:free`
-   - **Base URL**: `https://openrouter.ai/api/v1`
-
-### Step 3: Example Chat Workflow
-
-Create a chat workflow that:
-1. Uses **Chat Trigger** node to start conversation
-2. **OpenAI** node (with Llama 3b) with system prompt: "Ask the user for their peer ID"
-3. **MCP Tool** node → `get_my_id` to get your ID
-4. **MCP Tool** node → `create_contact` with user's peer ID from chat
-5. **MCP Tool** node → `send_message` to send welcome message
-
-**System Prompt Example:**
-```
-You are a helpful assistant. First, ask the user for their Submarino peer ID.
-Once you receive it, add them as a contact and send a welcome message.
-```
-
-## Environment Variables
-
-- `PORT`: Server port (default: `4242`)
-- `KEY_PATH`: Path to store peer keys (default: `./.keys`)
-
-Example:
-
-```bash
-PORT=8080 KEY_PATH=/path/to/keys node index.js
-```
-
-
-## Examples
-
-### Simple agent collaboration demo
-
-Spin up the actor + multiplier + adder example with a single command:
-
+### Demo agent collaboration
 ```bash
 npm run demo:agents
 ```
+Launches three local peers that exchange multiply/sum workloads using the shared MCP channel.
 
-The script launches three peers, shares their multiaddrs, and has the actor agent
-dispatch a multiply task followed by a sum task. Check the console log for the
-request IDs and final result (`6 * 7 + 5 = 47`). The agents reuse the key
-material in `.keys/`, so you can run the demo repeatedly without re-pairing.
-
-### LlamaIndex knowledge base
-
-The repo now ships with a lightweight ingestion/query helper that persists a
-vector store under `.llamaindex/agents`. The default dataset is
-`examples/llamaindex/sample_agents.json`, which describes the actor, multiplier,
-and adder roles used in the demo above.
-
-1. **Ingest data** (use `--reset` the first time to start clean):
-
+### Ingest & query knowledge (optional)
    ```bash
    uv run scripts/llamaindex_ingest.py ingest --reset
-   ```
+uv run scripts/llamaindex_ingest.py query "Which agent multiplies?"
+```
+Data persists under `.llamaindex/agents`; add your own JSON via `-i`.
 
-   - Add `-i path/to/extra.json` to layer in your own docs (JSON or plain text).
-   - The script uses the local `BAAI/bge-small-en-v1.5` embedding model from
-     Hugging Face, so the first run may download weights.
+## MCP Server Overview
+- **Tools**: `send_message`, `check_inbox`, `create_contact`, `list_contacts`, `get_my_id`, etc.
+- **Storage**: Peer IDs live in `.keys/peer-id.json`; inbox is Map-backed with read/unread flags.
+- **Transport**: Custom libp2p protocol (Noise + Yamux/Mplex over TCP) defined in `server.js`.
 
-2. **Query the store** with natural-language prompts:
+## Environment Variables
+- `PORT` — HTTP server port (default `4242`)
+- `KEY_PATH` — Directory for libp2p key material (default `./.keys`)
+- `FLUENCE_PRIVATE_KEY`, `LIBP2P_PEER_MULTIADDR`, etc., when targeting Fluence/remote peers
 
-   ```bash
-   uv run scripts/llamaindex_ingest.py query "Which agent handles multiplication?"
-   ```
+## License
+MIT — fork, remix, and extend the mesh. Sovereignty or bust.
 
-   The command prints a concise answer plus the top matching source nodes. Feel
-   free to tweak `--top-k` or edit `scripts/llamaindex_ingest.py` to plug in
-   your preferred LLM for richer responses. The persisted index lives in
-   `.llamaindex/agents`, so you can delete or version that directory as needed.
+**TL;DR:** HiveMind is the sovereign memory mesh for ETHGlobal Buenos Aires. Not your node, not your mind.***
