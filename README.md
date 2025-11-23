@@ -11,9 +11,10 @@ HiveMind links personal AI memory vaults into a sovereign, peer-to-peer network.
 
 ## What’s here
 - **MCP node**: Express + MCP server with libp2p direct-messaging surface (`/mcp` endpoint).
-- **Communication protocol**: Noise-encrypted libp2p streams, pubsub discovery, trusted-peer gate, and delegated routing fallback.
+- **Communication protocol**: Noise-encrypted libp2p streams, pubsub discovery, trusted-peer gate, delegated routing fallback.
 - **Agents demo**: Three cooperating peers (actor + two workers) exchanging tasks over the shared channel.
 - **Data ingestion**: LlamaIndex pipeline for local knowledge (`scripts/llamaindex_ingest.py`).
+- **Filecoin hooks (WIP)**: Snapshot helper available in `dist/filecoin.js`; not enabled in the default runtime yet.
 
 ## Quick start
 ```bash
@@ -22,10 +23,14 @@ cd submarino
 npm install
 cp .env.example .env   # set PORT, KEY_PATH, Filecoin RPC if used
 
-npm run dev            # start MCP/libp2p node in dev
-# or
-npm run build && npm start
+npm run dev            # start MCP/libp2p node locally
 ```
+
+### Configure your environment
+Edit `.env` before running:
+- `PORT` — HTTP/MCP port (default `4242`). Open inbound on your server firewall.
+- `KEY_PATH` — where peer keys and `trustedPeers.json` live. Persist this directory so identity survives redeploys.
+- `FILECOIN_*` — only needed if you experiment with the Filecoin snapshot helper (disabled by default).
 
 ### Talk to the MCP node
 The MCP server lives at `http://localhost:${PORT}/mcp` and exposes tools for messaging and trust management:
@@ -54,6 +59,32 @@ Data lives under `.llamaindex/agents`; add your own JSON via `-i`.
 - **Trust gate**: Incoming DMs are accepted only from peer IDs in `trustedPeers.json`. Manage via MCP tools before exchanging payloads.
 - **Bootstrap**: Optional dial to `/dnsaddr/sg1.bootstrap.libp2p.io/...` plus auto-dial of known/trusted peers.
 - **Failure handling**: Timeouts on dialing and streaming; inbox kept in-memory per node; key material persisted to `.keys/peer-id.json`.
+
+## Deploying a node
+- **Prereqs**: Node.js 22+, git, outbound internet for libp2p, inbound `PORT` open (default 4242). Persistent storage for `KEY_PATH` so identity survives restarts.
+- **Bootstrap on a remote host**:
+  1) `git clone https://github.com/mycelia-tech/submarino && cd submarino`
+  2) `npm install`
+  3) `cp .env.example .env` and set `PORT`/`KEY_PATH` (and `FILECOIN_*` if you plan to experiment)
+  4) Test: `npm run dev` and confirm the peer ID prints in logs
+  5) Prod: `npm start` (sets `NODE_ENV=production`). Optional: append `--hook https://your-webhook` to forward inbound messages.
+- **Keep it running (systemd example)**:
+  ```
+  [Unit]
+  Description=Submarino MCP Node
+  After=network.target
+
+  [Service]
+  WorkingDirectory=/opt/submarino
+  ExecStart=/usr/bin/env NODE_ENV=production node /opt/submarino/index.js --hook https://example.com/hook
+  Restart=always
+  EnvironmentFile=/opt/submarino/.env
+
+  [Install]
+  WantedBy=multi-user.target
+  ```
+  Reload systemd, then `systemctl enable --now submarino`.
+- **Backups**: Persist the `KEY_PATH` directory (default `.keys/mcp`) and `trustedPeers.json`. Restoring these preserves identity/trust. Filecoin snapshot helper lives in `dist/filecoin.js` if you want to wire it in.
 
 ## Roadmap (next passes)
 - Intent mesh broadcaster + capability negotiation (multi-hop routing).

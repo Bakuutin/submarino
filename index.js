@@ -39,7 +39,8 @@ if (hookUrl) {
 const app = express();
 app.use(express.json());
 
-const submarinoNode = new SubmarinoNode('.keys/mcp', messageCallback);
+const keyPath = process.env.KEY_PATH || '.keys/mcp';
+const submarinoNode = new SubmarinoNode(keyPath, messageCallback);
 await submarinoNode.start();
 
 const mcpServer = createServer(submarinoNode);

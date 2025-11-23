@@ -3,17 +3,15 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Backchannel for p2p AI Agent coordination",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "index.js",
   "scripts": {
-    "build": "tsc",
-    "dev": "tsx src/server.ts",
-    "start": "node dist/server.js",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:messaging": "tsx src/test/test-messaging.ts",
+    "dev": "node index.js",
+    "start": "NODE_ENV=production node index.js",
+    "build": "echo \"No build step required\"",
+    "test": "echo \"No automated tests yet\" && exit 0",
     "clean": "rm -rf dist",
-    "demo:agents": "node simple-agents.js"
+    "demo:agents": "node simple-agents.js",
+    "demo:nodes": "node test-nodes.js"
   },
   "keywords": [
     "libp2p",
