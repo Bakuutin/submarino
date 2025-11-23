@@ -117,6 +117,34 @@ The script performs `git fetch && git reset --hard origin/$REMOTE_BRANCH`, insta
 
 Ensure the SSH key used for automation only has access to the required hosts and repository.
 
+### Remote Filecoin cluster (81.15.150.153 & 81.15.150.22)
+1. Install the Lotus CLI on each host and make sure `ubuntu@host` can run `lotus` without sudo. Copy `.env` (or individual `FILECOIN_*` exports) into `/home/ubuntu/submarino`.
+2. Start/ensure Lotus lite daemons are running:
+   ```bash
+   REMOTE_USER=ubuntu FILECOIN_SERVERS="81.15.150.153 81.15.150.22" \
+   bash scripts/remote-filecoin-daemon.sh
+   ```
+   Override `REMOTE_LOTUS_PATH`, `LOTUS_BINARY`, or `SSH_OPTS` as needed. The script launches `nohup lotus daemon --lite` and waits for JSON-RPC readiness on every host.
+3. Link the daemons together so they gossip directly:
+   ```bash
+   REMOTE_USER=ubuntu FILECOIN_SERVERS="81.15.150.153 81.15.150.22" \
+   bash scripts/remote-filecoin-connect.sh
+   ```
+   The helper prints each node’s `/ip4/.../p2p/...` multiaddr, runs `lotus net connect` from every host to every other host, and dumps `lotus net peers` so you can verify the mesh.
+4. Deploy / restart Submarino with Filecoin enabled:
+   ```bash
+   REMOTE_USER=ubuntu REMOTE_PATH=/home/ubuntu/submarino \
+   FILECOIN_AUTO_SPAWN=true SSH_OPTS="-i ~/.ssh/submarino.pem" \
+   bash scripts/remote-update.sh
+   ```
+   Each remote MCP server now spawns its colocated Lotus daemon (or attaches to the one you launched) and will push `startup-snapshot.json` into the shared Filecoin network.
+5. Validate storage replication:
+   ```bash
+   ssh ubuntu@81.15.150.153 "curl -s http://127.0.0.1:4242/filecoin/health | jq"
+   ssh ubuntu@81.15.150.22  "LOTUS_PATH=~/.lotus-lite lotus client find <CID_FROM_STEP4>"
+   ```
+   When both daemons see the same CID, they can fetch each other’s snapshots; `lotus client list-deals` on either host should show the imports triggered by Submarino.
+
 ### Demo agent collaboration
 ```bash
 npm run demo:agents

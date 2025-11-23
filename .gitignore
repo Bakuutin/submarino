@@ -6,4 +6,5 @@ dist/
 __pycache__/
 .llamaindex/
 *.pyc
+.env
 !.gitignore
