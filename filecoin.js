@@ -3,56 +3,97 @@ import { mkdir, writeFile } from 'fs/promises';
 import { randomUUID } from 'crypto';
 import { join, resolve } from 'path';
 
+const DEFAULT_RPC_URL = 'http://127.0.0.1:1234/rpc/v0';
 const sleep = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
+const log = (...args) => console.log('[filecoin]', ...args);
+
+const boolFromEnv = (value, fallback) => {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  const normalized = String(value).toLowerCase();
+  return !(normalized === 'false' || normalized === '0' || normalized === 'no');
+};
 
 export class FilecoinNodeManager {
   constructor(options = {}) {
-    this.rpcUrl = options.rpcUrl || process.env.FILECOIN_RPC_URL || 'http://127.0.0.1:1234/rpc/v0';
+    const userProvidedRpc = options.rpcUrl || process.env.FILECOIN_RPC_URL;
+    this.rpcUrl = userProvidedRpc || DEFAULT_RPC_URL;
     this.authToken = options.authToken || process.env.FILECOIN_RPC_TOKEN || null;
     this.repoDir = resolve(options.repoDir || process.env.FILECOIN_REPO || '.filecoin');
-    this.lotusBinary = options.lotusBinary || process.env.FILECOIN_LOTUS_BINARY || null;
+    this.lotusBinary = options.lotusBinary || process.env.FILECOIN_LOTUS_BINARY || 'lotus';
     this.startTimeoutMs = Number(options.startTimeoutMs || process.env.FILECOIN_START_TIMEOUT_MS || 45_000);
+    const autoSpawnDefault = !userProvidedRpc || userProvidedRpc === DEFAULT_RPC_URL;
+    this.autoSpawn = boolFromEnv(options.autoSpawn ?? process.env.FILECOIN_AUTO_SPAWN, autoSpawnDefault);
     this.process = null;
     this.ready = false;
+    this.spawnedInternally = false;
   }
 
   async start() {
     if (this.ready) {
+      log('Reusing existing Filecoin RPC connection at', this.rpcUrl);
       return;
     }
 
     await mkdir(this.repoDir, { recursive: true });
+    log('Bootstrapping Filecoin manager. RPC:', this.rpcUrl, 'Repo:', this.repoDir);
 
-    if (this.lotusBinary && !this.process) {
+    if (this.autoSpawn && this.lotusBinary && !this.process) {
       const lotusPath = join(this.repoDir, 'lotus');
-      this.process = spawn(this.lotusBinary, ['daemon', '--lite'], {
-        env: {
-          ...process.env,
-          LOTUS_PATH: lotusPath,
-        },
-        stdio: 'inherit',
-      });
+      log('Spawning Lotus lite daemon via', this.lotusBinary, 'with repo', lotusPath);
+      try {
+        this.process = spawn(this.lotusBinary, ['daemon', '--lite'], {
+          env: {
+            ...process.env,
+            LOTUS_PATH: lotusPath,
+          },
+          stdio: 'inherit',
+        });
+        this.spawnedInternally = true;
 
-      this.process.on('exit', (code, signal) => {
-        console.log(`[filecoin] lotus daemon exited (code=${code ?? 'null'} signal=${signal ?? 'null'})`);
-        this.process = null;
-        this.ready = false;
-      });
+        this.process.on('exit', (code, signal) => {
+          log(`Lotus daemon exited (code=${code ?? 'null'} signal=${signal ?? 'null'})`);
+          this.process = null;
+          this.ready = false;
+          this.spawnedInternally = false;
+        });
+
+        this.process.on('error', (error) => {
+          log(`Lotus process error (${this.lotusBinary}):`, error.message);
+          this.process = null;
+          this.spawnedInternally = false;
+        });
+      } catch (error) {
+        this.spawnedInternally = false;
+        log(`Failed to spawn Lotus binary "${this.lotusBinary}":`, error.message);
+      }
+    } else if (this.autoSpawn && !this.lotusBinary) {
+      log('Auto-spawn enabled but no Lotus binary configured. Set FILECOIN_LOTUS_BINARY or disable auto spawn.');
+    } else if (!this.autoSpawn) {
+      log('Auto-spawn disabled; expecting external RPC endpoint.');
     }
 
     await this.waitForRpc();
     this.ready = true;
+    log('Filecoin RPC is ready at', this.rpcUrl);
   }
 
   async waitForRpc() {
     const deadline = Date.now() + this.startTimeoutMs;
+    let attempts = 0;
 
     while (Date.now() < deadline) {
       try {
         await this.chainHead();
-        console.log('[filecoin] JSON-RPC endpoint is reachable');
+        log('JSON-RPC endpoint responded to Filecoin.ChainHead');
         return;
       } catch (error) {
+        attempts += 1;
+        log(`RPC not reachable yet (attempt ${attempts}):`, error.message);
         await sleep(2000);
       }
     }
@@ -119,7 +160,7 @@ export class FilecoinNodeManager {
     ]);
 
     const cid = result?.Root?.['/'] ?? null;
-    console.log(`[filecoin] Stored snapshot ${fileName}${cid ? ` (cid: ${cid})` : ''}`);
+    log(`Stored snapshot ${fileName}${cid ? ` (cid: ${cid})` : ''}`);
 
     return {
       cid,
@@ -127,12 +168,36 @@ export class FilecoinNodeManager {
     };
   }
 
+  async getStatus() {
+    try {
+      const head = await this.chainHead();
+      const height = head?.Height ?? head?.Blocks?.[0]?.Height ?? null;
+      const tipsetKeys = head?.Cids?.map((cid) => cid['/']).filter(Boolean) ?? [];
+      return {
+        ready: true,
+        rpcUrl: this.rpcUrl,
+        height,
+        tipsetKeys,
+        spawnedInternally: this.spawnedInternally,
+      };
+    } catch (error) {
+      return {
+        ready: false,
+        rpcUrl: this.rpcUrl,
+        spawnedInternally: this.spawnedInternally,
+        error: error.message,
+      };
+    }
+  }
+
   async stop() {
     if (this.process) {
+      log('Stopping Lotus daemon');
       this.process.kill('SIGINT');
       this.process = null;
     }
 
     this.ready = false;
+    this.spawnedInternally = false;
   }
 }

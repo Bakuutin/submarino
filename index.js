@@ -54,6 +54,17 @@ async function initializeFilecoinIntegration() {
   }
 
   try {
+    const status = await filecoinManager.getStatus();
+    if (status.ready) {
+      console.log(`[filecoin] Connected to RPC ${status.rpcUrl} (height: ${status.height ?? 'unknown'})`);
+    } else {
+      console.warn('[filecoin] RPC status unknown:', status.error);
+    }
+  } catch (error) {
+    console.warn('[filecoin] Unable to read status:', error.message);
+  }
+
+  try {
     await filecoinManager.storeDatabaseSnapshot({
       peerId: submarinoNode.peerId,
       timestamp: new Date().toISOString(),
@@ -74,6 +85,23 @@ initializeFilecoinIntegration();
 });
 
 const mcpServer = createServer(submarinoNode);
+
+app.get('/filecoin/health', async (_req, res) => {
+    try {
+        const status = await filecoinManager.getStatus();
+        const payload = {
+            ...status,
+            timestamp: new Date().toISOString(),
+        };
+        res.status(status.ready ? 200 : 503).json(payload);
+    } catch (error) {
+        res.status(500).json({
+            ready: false,
+            error: error.message,
+            timestamp: new Date().toISOString(),
+        });
+    }
+});
 
 app.post('/mcp', async (req, res) => {
     // Create a new transport for each request to prevent request ID collisions

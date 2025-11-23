@@ -98,8 +98,10 @@ Launches three local peers that exchange multiply/sum workloads using the shared
     -H "Content-Type: application/json" \
     -d '{ "jsonrpc": "2.0", "method": "Filecoin.ChainHead", "params": [], "id": 1 }'
   ```
-- Set `FILECOIN_LOTUS_BINARY` if you want the server to spawn the lite node automatically, or expose an existing RPC endpoint via `FILECOIN_RPC_URL`.
+- Set `FILECOIN_LOTUS_BINARY` if you want the server to spawn the lite node automatically, or expose an existing RPC endpoint via `FILECOIN_RPC_URL`. When no custom RPC is provided, Submarino defaults to running `lotus daemon --lite` from your `$PATH`; set `FILECOIN_AUTO_SPAWN=false` to disable this behavior.
 - On boot, `index.js` loads `filecoin.js`, waits for the chain head, and pushes a JSON snapshot of trusted peers via `Filecoin.ClientImport`. Snapshot files live under `.filecoin/snapshots`.
+- Once the MCP server is running, call `GET /filecoin/health` to confirm Lotus is reachable. A `200` response includes the latest height, RPC endpoint, and tipset keys; `503`/`500` indicates the RPC is still warming up or unreachable (logs also stream under the `[filecoin]` prefix).
+- Need a local dev target? Run `npm run mock:filecoin` to boot a JSON-RPC stub on `http://127.0.0.1:1234/rpc/v0`, then start the MCP server with `FILECOIN_AUTO_SPAWN=false` to exercise the integration without a full Lotus install.
 
 ### Ingest & query knowledge (optional)
    ```bash
@@ -122,6 +124,7 @@ Data persists under `.llamaindex/agents`; add your own JSON via `-i`.
 - `FILECOIN_RPC_TOKEN` — Bearer token for authenticated RPC calls.
 - `FILECOIN_REPO` — Directory for Lotus repo data and stored snapshots (default `./.filecoin`).
 - `FILECOIN_START_TIMEOUT_MS` — Milliseconds to wait for Lotus RPC readiness (default `45000`).
+- `FILECOIN_AUTO_SPAWN` — Set to `false` to skip launching a local Lotus process and rely solely on `FILECOIN_RPC_URL`.
 
 ## License
 MIT — fork, remix, and extend the mesh. Sovereignty or bust.

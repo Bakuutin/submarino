@@ -14,7 +14,8 @@
     "test:messaging": "tsx src/test/test-messaging.ts",
     "clean": "rm -rf dist",
     "demo:agents": "node simple-agents.js",
-    "demo:agents:dry": "node scripts/agent-registry.js"
+    "demo:agents:dry": "node scripts/agent-registry.js",
+    "mock:filecoin": "node scripts/mock-filecoin-rpc.js"
   },
   "keywords": [
     "libp2p",
