@@ -71,7 +71,9 @@ while (attempts < maxAttempts) {
 }
 
 
-await node1.sendMessage(node2.node.peerId.toString(), 'Hello from node1!');
+await node2.addTrustedPeer(node1.peerId);
+
+await node1.sendMessage(node2.peerId, 'Hello from node1!');
 
 if (node2.inbox.length > 0) {
   console.log('Node 2 inbox:', node2.inbox);
