@@ -10,6 +10,10 @@ import { noise } from "@chainsafe/libp2p-noise";
 import { yamux } from "@chainsafe/libp2p-yamux";
 import { mdns } from "@libp2p/mdns";
 import { tcp } from "@libp2p/tcp";
+import { webSockets } from '@libp2p/websockets'
+import { webRTC, webRTCDirect } from '@libp2p/webrtc'
+import { circuitRelayTransport } from '@libp2p/circuit-relay-v2'
+import { quic } from '@chainsafe/libp2p-quic'
 import defaultsDeep from "@nodeutils/defaults-deep";
 import { createLibp2p as create } from "libp2p";
 import { lpStream } from "@libp2p/utils";
@@ -249,7 +253,14 @@ async function msgIdFnStrictNoSign(msg) {
 export async function createLibp2p(_options) {
   const delegatedClient = createDelegatedRoutingV1HttpApiClient('https://delegated-ipfs.dev')
   const defaults = {
-    transports: [tcp()],
+    transports: [
+      webSockets(),
+      webRTC(),
+      webRTCDirect(),
+      circuitRelayTransport(),
+      quic(),
+      tcp()
+    ],
     streamMuxers: [yamux()],
     connectionEncrypters: [noise()],
     peerDiscovery: [
@@ -537,7 +548,11 @@ async start() {
 
     this.node = await createLibp2p({
       addresses: {
-        listen: ["/ip4/0.0.0.0/tcp/0"],
+        listen: [
+          '/webrtc-direct',
+          '/ip4/0.0.0.0/tcp/0',
+          '/ip4/0.0.0.0/udp/0/quic-v1'
+        ],
       },
       privateKey: await this.getOrCreatePrivateKey(),
     });
