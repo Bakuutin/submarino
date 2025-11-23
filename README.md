@@ -87,6 +87,20 @@ npm run demo:agents
 ```
 Launches three local peers that exchange multiply/sum workloads using the shared MCP channel.
 
+## Filecoin integration (experimental)
+- Install the [Lotus daemon](https://docs.filecoin.io/run/lotus/install) and ensure you can run a lite node:
+  ```bash
+  lotus daemon --lite
+  ```
+- Verify the node is reachable through JSON-RPC (Submarino runs the same health check described in the Filecoin docs):
+  ```bash
+  curl -X POST http://127.0.0.1:1234/rpc/v0 \
+    -H "Content-Type: application/json" \
+    -d '{ "jsonrpc": "2.0", "method": "Filecoin.ChainHead", "params": [], "id": 1 }'
+  ```
+- Set `FILECOIN_LOTUS_BINARY` if you want the server to spawn the lite node automatically, or expose an existing RPC endpoint via `FILECOIN_RPC_URL`.
+- On boot, `index.js` loads `filecoin.js`, waits for the chain head, and pushes a JSON snapshot of trusted peers via `Filecoin.ClientImport`. Snapshot files live under `.filecoin/snapshots`.
+
 ### Ingest & query knowledge (optional)
    ```bash
    uv run scripts/llamaindex_ingest.py ingest --reset
@@ -103,6 +117,11 @@ Data persists under `.llamaindex/agents`; add your own JSON via `-i`.
 - `PORT` — HTTP server port (default `4242`)
 - `KEY_PATH` — Directory for libp2p key material (default `./.keys`)
 - `FLUENCE_PRIVATE_KEY`, `LIBP2P_PEER_MULTIADDR`, etc., when targeting Fluence/remote peers
+- `FILECOIN_LOTUS_BINARY` — Optional path to `lotus`; when present Submarino spawns a lite daemon.
+- `FILECOIN_RPC_URL` — JSON-RPC endpoint for Filecoin (default `http://127.0.0.1:1234/rpc/v0`).
+- `FILECOIN_RPC_TOKEN` — Bearer token for authenticated RPC calls.
+- `FILECOIN_REPO` — Directory for Lotus repo data and stored snapshots (default `./.filecoin`).
+- `FILECOIN_START_TIMEOUT_MS` — Milliseconds to wait for Lotus RPC readiness (default `45000`).
 
 ## License
 MIT — fork, remix, and extend the mesh. Sovereignty or bust.

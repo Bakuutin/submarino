@@ -2,6 +2,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 
 import express from 'express';
 import { SubmarinoNode } from './submarino.js';
+import { FilecoinNodeManager } from './filecoin.js';
 import { createServer } from './mcp.js';
 
 // Parse command line arguments for --hook flag
@@ -41,6 +42,36 @@ app.use(express.json());
 
 const submarinoNode = new SubmarinoNode('.keys/mcp', messageCallback);
 await submarinoNode.start();
+
+const filecoinManager = new FilecoinNodeManager();
+
+async function initializeFilecoinIntegration() {
+  try {
+    await filecoinManager.start();
+  } catch (error) {
+    console.warn('[filecoin] Failed to initialize node:', error.message);
+    return;
+  }
+
+  try {
+    await filecoinManager.storeDatabaseSnapshot({
+      peerId: submarinoNode.peerId,
+      timestamp: new Date().toISOString(),
+      trustedPeers: Array.from(submarinoNode.trustedPeers ?? []),
+    }, { fileName: 'startup-snapshot.json' });
+  } catch (error) {
+    console.warn('[filecoin] Unable to push initial snapshot:', error.message);
+  }
+}
+
+initializeFilecoinIntegration();
+
+['SIGINT', 'SIGTERM'].forEach((signal) => {
+  process.once(signal, async () => {
+    await filecoinManager.stop().catch(() => {});
+    process.exit(0);
+  });
+});
 
 const mcpServer = createServer(submarinoNode);
 
