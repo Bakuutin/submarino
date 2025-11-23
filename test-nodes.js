@@ -1,47 +1,80 @@
-import { NetworkNode } from './server.js';
+import { SubmarinoNode } from './submarino.js';
 
-// Set timeout to prevent hanging
-const TIMEOUT_MS = 30000; // 30 seconds
-const timeoutId = setTimeout(() => {
-  console.error('Test timed out after', TIMEOUT_MS, 'ms');
-  process.exit(1);
-}, TIMEOUT_MS);
+console.log('Creating nodes...');
+const node1 = new SubmarinoNode('.keys/node1');
 
-async function runTest() {
-  try {
-    console.log('Creating nodes...');
-    const node1 = new NetworkNode('.keys/node1');
-    const node2 = new NetworkNode('.keys/node2');
+await node1.start();
 
-    console.log('Starting node1...');
-    await node1.start();
-    console.log('Node1 started. Peer ID:', node1.getPeerId());
+console.log('Node 1 started');
+console.log('Node 1 peer id:', node1.node.peerId.toString());
 
-    console.log('Starting node2...');
-    await node2.start();
-    console.log('Node2 started. Peer ID:', node2.getPeerId());
 
-    // Wait a bit for nodes to discover each other
-    console.log('Waiting for nodes to discover each other...');
-    await new Promise(resolve => setTimeout(resolve, 2000));
 
-    console.log('Sending message from node1 to node2...');
-    const result = await node1.sendMessage([node2.getPeerId()], 'Hello, world!');
-    console.log('Send result:', JSON.stringify(result, null, 2));
+const node2 = new SubmarinoNode('.keys/node2');
+await node2.start();
 
-    console.log('Stopping node1...');
-    await node1.stop();
-    console.log('Stopping node2...');
-    await node2.stop();
+console.log('Node 2 started');
+console.log('Node 2 peer id:', node2.node.peerId.toString());
 
-    clearTimeout(timeoutId);
-    console.log('Test completed successfully');
-    process.exit(0);
-  } catch (error) {
-    clearTimeout(timeoutId);
-    console.error('Test failed:', error);
-    process.exit(1);
-  }
+// Get node addresses for manual dialing
+const node1Addrs = node1.node.getMultiaddrs();
+const node2Addrs = node2.node.getMultiaddrs();
+
+console.log('Node 1 addresses:', node1Addrs.map(m => m.toString()));
+console.log('Node 2 addresses:', node2Addrs.map(m => m.toString()));
+
+// Try to manually dial each other to speed up connection
+console.log('Attempting to dial nodes...');
+try {
+  await node1.node.dial(node2Addrs);
+  console.log('Node 1 dialed Node 2');
+} catch (err) {
+  console.log('Node 1 failed to dial Node 2:', err.message);
 }
 
-runTest(); 
+try {
+  await node2.node.dial(node1Addrs);
+  console.log('Node 2 dialed Node 1');
+} catch (err) {
+  console.log('Node 2 failed to dial Node 1:', err.message);
+}
+
+console.log('Checking if nodes are connected...');
+let attempts = 0;
+const maxAttempts = 30; // Wait up to 30 seconds
+
+while (attempts < maxAttempts) {
+  // Check if nodes are actually connected (not just discovered)
+  const n1ConnectedPeers = Array.from(node1.node.getPeers()).map(p => p.toString());
+  const n2ConnectedPeers = Array.from(node2.node.getPeers()).map(p => p.toString());
+  
+  const n1Peers = Array.from(node1.knownPeers.keys()).map(p => p.toString());
+  const n2Peers = Array.from(node2.knownPeers.keys()).map(p => p.toString());
+  
+  if (n1ConnectedPeers.includes(node2.node.peerId.toString()) && 
+      n2ConnectedPeers.includes(node1.node.peerId.toString())) {
+    console.log('Nodes are connected!');
+    break;
+  }
+  
+  if (n1Peers.includes(node2.node.peerId.toString()) && 
+      n2Peers.includes(node1.node.peerId.toString())) {
+    console.log('Nodes discovered each other, waiting for connection...');
+  } else {
+    console.log('Waiting for nodes to discover each other...');
+    console.log('Node 1 discovered peers:', n1Peers);
+    console.log('Node 2 discovered peers:', n2Peers);
+  }
+  
+  attempts++;
+  await new Promise(resolve => setTimeout(resolve, 1000));
+}
+
+
+await node2.addTrustedPeer(node1.peerId);
+
+await node1.sendMessage(node2.peerId, 'Hello from node1!');
+
+if (node2.inbox.length > 0) {
+  console.log('Node 2 inbox:', node2.inbox);
+}
