@@ -23,6 +23,7 @@ import { pubsubPeerDiscovery } from '@libp2p/pubsub-peer-discovery'
 import { ping } from '@libp2p/ping'
 import { gossipsub } from '@chainsafe/libp2p-gossipsub'
 import { sha256 } from 'multiformats/hashes/sha2'
+import { multiaddr } from '@multiformats/multiaddr'
 
 
 
@@ -497,6 +498,33 @@ async dialAllTrustedPeers() {
   if (!this.node || this.trustedPeers.size === 0) {
     return;
   }
+
+  console.log(`Attempting to dial ${this.trustedPeers.size} trusted peer(s)...`);
+  
+  // Dial all trusted peers in parallel
+  const dialPromises = Array.from(this.trustedPeers).map(peerIdStr => 
+    this.dialPeer(peerIdStr).catch(err => {
+      // Errors are already logged in dialPeer
+    })
+  );
+  
+  await Promise.allSettled(dialPromises);
+}
+
+async dialBootstrapPeer() {
+  if (!this.node) {
+    return;
+  }
+
+  const bootstrapAddr = multiaddr('/dnsaddr/sg1.bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt');
+  
+  try {
+    await this.node.dial(bootstrapAddr);
+    console.log('Connected to bootstrap peer:', bootstrapAddr.toString());
+  } catch (err) {
+    // Ignore dial errors - bootstrap peer might be unreachable
+    console.log('Failed to connect to bootstrap peer:', err.message);
+  }
 }
 
 async start() {
@@ -532,6 +560,9 @@ async start() {
     
     console.log('Node started, peer ID:', this.node.peerId.toString());
     console.log('Listening on:', this.node.getMultiaddrs().map(m => m.toString()));
+    
+    // Connect to bootstrap peer as soon as node is up
+    await this.dialBootstrapPeer();
     
     // Try to dial all trusted peers on wake up to speed up connection
     await this.dialAllTrustedPeers();
