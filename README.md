@@ -1,110 +1,73 @@
 # HiveMind — Sovereign Memory Mesh
-_ETHGlobal Buenos Aires 2025 build by Mycelia Tech_
+Built by [Mycelia Tech](https://mycelia.tech/) for ETHGlobal Buenos Aires 2025.
 
-HiveMind turns personal AI memory vaults into a coordinated, sovereign network. Each node runs a local-first MCP server, speaks libp2p, and backs up encrypted knowledge shards across trusted peers—no central coordinator, no forced cloud tenancy.
+HiveMind links personal AI memory vaults into a sovereign, peer-to-peer network. Each node runs a local-first MCP server, speaks libp2p, and can back up encrypted shards across trusted peers—no central coordinator, no forced cloud tenancy.
 
-## Hackathon
-| Field | Details |
-| --- | --- |
-| Goal | Ship node-to-node intent coordination |
-| Stack | Working MCP comms + ingestion; Mesh coordination |
+## Why this exists
+- **Memory is rented**: Chats, notes, and voice memos live in SaaS silos you do not control.
+- **Context evaporates**: You recall the conversation, not the facts.
+- **Central chokepoints**: TOS changes or outages can delete your cognitive history overnight.
+- **Our answer**: Self-owned memory, peer-to-peer coordination, sovereign backups, and distributed compute.
 
-## Problem
-Digital memory today is broken. Your thoughts, voice notes, chats, and ideas live inside centralized
-silos (Google, Notion, OpenAI, Telegram). You rent access to your own history, and the moment a
-server shuts down, a policy changes, or an account is blocked—your memory disappears.
-**Mycelia Mesh fixes this by introducing:**
-- Self-sovereign ownership of personal AI memory
-- Peer-to-peer intelligence coordination
-- Decentralized, censorship-resistant backups
-- Infrastructure built for autonomy, not surveillance
-## Why HiveMind?
-- **Memory is siloed**: Chats, notes, and voice memos sit in accounts you rent.
-- **Context disappears**: You remember a conversation, not the details that matter.
-- **Central servers fail**: A TOS change can delete your cognitive history overnight.
+## What’s here
+- **MCP node**: Express + MCP server with libp2p direct-messaging surface (`/mcp` endpoint).
+- **Communication protocol**: Noise-encrypted libp2p streams, pubsub discovery, trusted-peer gate, and delegated routing fallback.
+- **Agents demo**: Three cooperating peers (actor + two workers) exchanging tasks over the shared channel.
+- **Data ingestion**: LlamaIndex pipeline for local knowledge (`scripts/llamaindex_ingest.py`).
 
-## Our Answer
-HiveMind links local AI memories into a federated mesh:
-- Nodes store and index private data locally
-- Intents are broadcast over libp2p for cross-node help
-- Replicate itself as encrypted shards across trusted peers
-- Decentralized compute handles GPU/CPU
-
-## Core Capabilities
-- **🔗 Node-to-node comms**: libp2p discovery, Noise-encrypted streams, MCP tool surface.
-- **🧠 Agent cooperation**: Intent extraction, capability matching, distributed execution.
-- **💾 Sovereign backups**: Sharded, encrypted replication with trust/geo heuristics.
-
-
-## Architecture
-```
-┌──────────────┐      libp2p      ┌──────────────┐
-│ Your Node    │◄────────────────►│ Peer Node    │
-│              │                  │              │
-│ - Local DB   │                  │ - Local DB   │
-│ - AI Agent   │                  │ - AI Agent   │
-│ - Intent AI  │                  │ - Intent AI  │
-│ - Backup     │                  │ - Backup     │
-└──────┬───────┘                  └──────┬───────┘
-       │                                  │
-       ▼                                  ▼
-   Fluence CPU/GPU                  Fluence CPU/GPU
-(compute + inference)            (compute + inference)
-```
-
-## Track Alignment
-- **Sovereign Systems**: No central coordinator; peers control identity, storage, and routing.
-- **AI Infrastructure**: Multi-agent workflows + local LLMs.
-
-## Current Progress
-- ✅ MCP server (`server.js`) with libp2p messaging, inbox, contact management.
-- ✅ Knowledge ingestion/query via `scripts/llamaindex_ingest.py` (uses `uv run`).
-- ✅ Demo agents (`npm run demo:agents`) showing task chaining across peers.
-- 🛠 Intent mesh broadcaster + capability negotiation layer.
-- 🛠 Encrypted backup daemon with trust scoring + heal/restore flows.
-
-
-
-
-## Setup
+## Quick start
 ```bash
 git clone https://github.com/mycelia-tech/submarino
 cd submarino
 npm install
-cp .env.example .env
-```
-Set `PORT`, `KEY_PATH`, and any Fluence/libp2p secrets as needed.
+cp .env.example .env   # set PORT, KEY_PATH, Filecoin RPC if used
 
-### Run the MCP node
-```bash
-npm run dev            # ts-node dev server
-npm run build && npm start   # compile to dist/ then serve
+npm run dev            # start MCP/libp2p node in dev
+# or
+npm run build && npm start
 ```
 
-### Demo agent collaboration
+### Talk to the MCP node
+The MCP server lives at `http://localhost:${PORT}/mcp` and exposes tools for messaging and trust management:
+- `send_message` — send a payload to peer IDs
+- `check_inbox` — read messages already accepted
+- `add_trusted_peer` / `remove_trusted_peer` / `list_trusted_peers`
+- `get_my_id` — peer ID, multiaddrs, and connected peers
+
+### Run the agent collaboration demo
 ```bash
 npm run demo:agents
 ```
-Launches three local peers that exchange multiply/sum workloads using the shared MCP channel.
+Spins up actor + two compute peers. The actor requests `multiply(6, 7)` then `sum(result, 5)` across the mesh and exits.
 
-### Ingest & query knowledge (optional)
-   ```bash
-   uv run scripts/llamaindex_ingest.py ingest --reset
+### Ingest and query local knowledge (optional)
+```bash
+uv run scripts/llamaindex_ingest.py ingest --reset
 uv run scripts/llamaindex_ingest.py query "Which agent multiplies?"
 ```
-Data persists under `.llamaindex/agents`; add your own JSON via `-i`.
+Data lives under `.llamaindex/agents`; add your own JSON via `-i`.
 
-## MCP Server Overview
-- **Tools**: `send_message`, `check_inbox`, `create_contact`, `list_contacts`, `get_my_id`, etc.
-- **Storage**: Peer IDs live in `.keys/peer-id.json`; inbox is Map-backed with read/unread flags.
-- **Transport**: Custom libp2p protocol (Noise + Yamux/Mplex over TCP) defined in `server.js`.
+## Communication protocol (high level)
+- **Discovery**: mDNS + pubsub (`submarino-peer-discovery`) with optional delegated routing via `https://delegated-ipfs.dev`.
+- **Transports**: WebRTC, WebSockets, QUIC, TCP, circuit-relay; multiplexed with Yamux; encrypted with Noise.
+- **Direct messages**: Custom protocol `/universal-connectivity/dm/1.0.0` using protobuf framing (`direct-message.proto` → `direct-message.js`). Messages include metadata (version, timestamp) and return `Status.OK` on success.
+- **Trust gate**: Incoming DMs are accepted only from peer IDs in `trustedPeers.json`. Manage via MCP tools before exchanging payloads.
+- **Bootstrap**: Optional dial to `/dnsaddr/sg1.bootstrap.libp2p.io/...` plus auto-dial of known/trusted peers.
+- **Failure handling**: Timeouts on dialing and streaming; inbox kept in-memory per node; key material persisted to `.keys/peer-id.json`.
 
 ## Environment Variables
 - `PORT` — HTTP server port (default `4242`)
 - `KEY_PATH` — Directory for libp2p key material (default `./.keys`)
 - `FLUENCE_PRIVATE_KEY`, `LIBP2P_PEER_MULTIADDR`, etc., when targeting Fluence/remote peers
 
-## License
-MIT — fork, remix, and extend the mesh. Sovereignty or bust.
 
-**TL;DR:** HiveMind is the sovereign memory mesh for ETHGlobal Buenos Aires. Not your node, not your mind.***
+## Roadmap (next passes)
+- Intent mesh broadcaster + capability negotiation (multi-hop routing).
+- Encrypted backup daemon with trust scoring and heal/restore flows.
+- Hardened inbox persistence and audit trail.
+- More MCP surfaces: mesh health, capability directory, and async job receipts.
+
+## License
+MIT — fork, remix, and extend the mesh.
+
+**TL;DR:** HiveMind is the sovereign memory mesh. Not your node, not your mind.
