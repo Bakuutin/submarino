@@ -81,6 +81,42 @@ npm run dev            # ts-node dev server
 npm run build && npm start   # compile to dist/ then serve
 ```
 
+### Auto-restart `dist/index.js` locally
+1. Run `npm run build` once so `dist/index.js` exists.
+2. Start the watcher: `npm run watch:index`
+
+`node --watch` restarts `dist/index.js` whenever the compiler rewrites it, which keeps a long-running MCP node in sync while you iterate. Run `npm run build` (or `npm run dev`) in another terminal whenever you change source files so that `dist/index.js` updates.
+
+### Sync & restart remote nodes
+- Script: `scripts/remote-update.sh`
+- Default hosts: `81.15.150.153` and `81.15.150.22`
+- Requirements: passwordless SSH for each host, Node/npm installed on the remote, and this repo already cloned.
+
+Environment overrides (all optional):
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `REMOTE_USER` | `pk` | SSH username |
+| `REMOTE_PATH` | `/home/$REMOTE_USER/submarino` | Path to the repo on the remote |
+| `REMOTE_BRANCH` | `main` | Branch to track |
+| `REMOTE_RESTART_CMD` | `npm run start` | Command that restarts your process manager |
+| `SSH_OPTS` | _(empty)_ | Extra flags (`-i`, `-o StrictHostKeyChecking=no`, etc.) |
+
+Usage example (restart via PM2 on Ubuntu):
+```bash
+REMOTE_USER=ubuntu \
+REMOTE_PATH=/opt/submarino \
+REMOTE_RESTART_CMD="pm2 restart submarino" \
+bash scripts/remote-update.sh
+```
+
+The script performs `git fetch && git reset --hard origin/$REMOTE_BRANCH`, installs deps, rebuilds, and runs the restart command on each host. Add a cron entry or systemd timer to keep the nodes up-to-date automatically, e.g.:
+```cron
+*/5 * * * * REMOTE_USER=ubuntu REMOTE_PATH=/opt/submarino bash /home/ubuntu/submarino/scripts/remote-update.sh >> /var/log/submarino-sync.log 2>&1
+```
+
+Ensure the SSH key used for automation only has access to the required hosts and repository.
+
 ### Demo agent collaboration
 ```bash
 npm run demo:agents

@@ -9,6 +9,7 @@
     "build": "tsc",
     "dev": "tsx src/server.ts",
     "start": "node dist/server.js",
+    "watch:index": "node --watch dist/index.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:messaging": "tsx src/test/test-messaging.ts",
