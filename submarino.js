@@ -23,6 +23,7 @@ import { pubsubPeerDiscovery } from '@libp2p/pubsub-peer-discovery'
 import { ping } from '@libp2p/ping'
 import { gossipsub } from '@chainsafe/libp2p-gossipsub'
 import { sha256 } from 'multiformats/hashes/sha2'
+import { multiaddr as toMultiaddr } from '@multiformats/multiaddr'
 
 
 
@@ -70,6 +71,8 @@ const ERRORS = {
   NO_METADATA: 'No metadata in response',
   STATUS_NOT_OK: (status) => `Received status: ${status}, expected OK`,
 };
+
+const meshLog = (...args) => console.log('[mesh]', ...args);
 
 class DirectMessage extends TypedEventEmitter {
   [serviceDependencies] = [
@@ -245,6 +248,9 @@ async function msgIdFnStrictNoSign(msg) {
   return await sha256.encode(encodedSeqNum);
 }
 
+const normalizePeerId = (peerId) =>
+  typeof peerId === 'string' ? peerId : peerId?.toString();
+
 export async function createLibp2p(_options) {
   const delegatedClient = createDelegatedRoutingV1HttpApiClient('https://delegated-ipfs.dev')
   const defaults = {
@@ -290,31 +296,61 @@ class SubmarinoNode {
     return this.node.peerId.toString();
   }
 
-  onPeerDiscovery(evt) {
-    console.log('Peer discovered:', evt.detail.id.toString());
-    const {id, multiaddrs} = evt.detail;
-    let knownAddresses = this.knownPeers.get(id);
+  getMultiaddrs() {
+    return this.node ? this.node.getMultiaddrs() : [];
+  }
+
+  async stop() {
+    if (!this.node) {
+      return;
+    }
+
+    await this.node.stop();
+    this.node = null;
+  }
+
+  async addKnownPeer(peerId, multiaddrs = []) {
+    const peerIdStr = normalizePeerId(peerId);
+    if (!peerIdStr) {
+      return;
+    }
+
+    let knownAddresses = this.knownPeers.get(peerIdStr);
     if (!knownAddresses) {
       knownAddresses = new Set();
-      this.knownPeers.set(id.toString(), knownAddresses);
+      this.knownPeers.set(peerIdStr, knownAddresses);
+    }
+
+    for (const addr of multiaddrs) {
+      try {
+        const ma = typeof addr === 'string' ? toMultiaddr(addr) : addr;
+        knownAddresses.add(ma);
+      } catch (error) {
+        console.warn(`[submarino] Skipping invalid multiaddr for ${peerIdStr}:`, error.message);
+      }
+    }
+
+    await this.addTrustedPeer(peerIdStr);
+  }
+
+  onPeerDiscovery(evt) {
+    const { id, multiaddrs = [] } = evt.detail;
+    const peerIdStr = normalizePeerId(id);
+    meshLog('peer discovered', peerIdStr, {
+      addresses: multiaddrs.map((addr) => addr.toString?.() ?? String(addr)),
+    });
+
+    let knownAddresses = this.knownPeers.get(peerIdStr);
+    if (!knownAddresses) {
+      knownAddresses = new Set();
+      this.knownPeers.set(peerIdStr, knownAddresses);
     }
     for (const multiaddr of multiaddrs) {
       knownAddresses.add(multiaddr);
     }
-    
-    // Auto-dial discovered peers to establish connection
-    if (this.node) {
-      Promise.resolve().then(async () => {
-        try {
-          if (multiaddrs && multiaddrs.length > 0) {
-            await this.node.dial(multiaddrs);
-          } else if (id) {
-            await this.node.dial(id);
-          }
-        } catch (err) {
-          // Ignore dial errors - peer might already be connected or unreachable
-        }
-      });
+
+    if (peerIdStr) {
+      Promise.resolve().then(() => this.dialPeer(peerIdStr));
     }
   }
 
@@ -322,10 +358,10 @@ class SubmarinoNode {
     try {
       // Convert to PeerId if it's a string
       const peerId = typeof to === 'string' ? peerIdFromString(to) : to;
-      
+
       // Convert message to string if it's an object
       const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
-      
+
       await this.node.services.directMessage.send(peerId, messageStr);
     } catch (error) {
       console.error("Error sending message:", error);
@@ -336,20 +372,28 @@ class SubmarinoNode {
   onDirectMessage(evt) {
     const { content, connection } = evt.detail;
     const peerId = connection.remotePeer.toString();
-    
+
     // Check if peer is trusted
     if (!this.trustedPeers.has(peerId)) {
       console.log(`Dropping message from untrusted peer: ${peerId}`);
       return;
     }
-    
+
     console.log(`Received direct message from ${peerId}: ${content}`);
+    let payload = content;
+    try {
+      payload = JSON.parse(content);
+    } catch (error) {
+      // leave payload as-is
+    }
+
     const message = {
       from: peerId,
-      content: content,
+      content,
+      payload,
     };
     this.inbox.push(message);
-    
+
     // Call hook callback if provided
     if (this.messageCallback) {
       Promise.resolve(this.messageCallback(message)).catch(error => {
@@ -401,13 +445,13 @@ async getOrCreatePrivateKey() {
 
 async loadTrustedPeers() {
   const trustedPeersFile = join(this.keyPath, 'trustedPeers.json');
-  
+
   // If file exists, try to load it
   if (existsSync(trustedPeersFile)) {
     try {
       const raw = await readFile(trustedPeersFile, 'utf8');
       const data = JSON.parse(raw);
-      
+
       if (Array.isArray(data.trustedPeers)) {
         this.trustedPeers = new Set(data.trustedPeers);
       } else {
@@ -422,44 +466,46 @@ async loadTrustedPeers() {
     this.trustedPeers = new Set();
     await this.saveTrustedPeers();
   }
+  meshLog('trusted peers loaded', Array.from(this.trustedPeers));
 }
 
 async saveTrustedPeers() {
   const trustedPeersFile = join(this.keyPath, 'trustedPeers.json');
-  
+
   // Ensure directory exists
   await mkdir(this.keyPath, { recursive: true });
-  
+
   const payload = {
     trustedPeers: Array.from(this.trustedPeers)
   };
-  
+
   await writeFile(trustedPeersFile, JSON.stringify(payload, null, 2), 'utf8');
 }
 
 async addTrustedPeer(peerId) {
   const peerIdStr = typeof peerId === 'string' ? peerId : peerId.toString();
-  
+
   if (this.trustedPeers.has(peerIdStr)) {
     return false; // Already trusted
   }
-  
+
   this.trustedPeers.add(peerIdStr);
   await this.saveTrustedPeers();
-  
+  meshLog('trusted peer added', peerIdStr, `total=${this.trustedPeers.size}`);
+
   // Try to dial the newly added trusted peer to speed up connection
   await this.dialPeer(peerIdStr);
-  
+
   return true;
 }
 
 async removeTrustedPeer(peerId) {
   const peerIdStr = typeof peerId === 'string' ? peerId : peerId.toString();
-  
+
   if (!this.trustedPeers.has(peerIdStr)) {
     return false; // Not in trusted list
   }
-  
+
   this.trustedPeers.delete(peerIdStr);
   await this.saveTrustedPeers();
   return true;
@@ -471,17 +517,25 @@ async dialPeer(peerId) {
   }
 
   const peerIdStr = typeof peerId === 'string' ? peerId : peerId.toString();
-  
+
   try {
     // Check if we have known addresses for this peer
     const knownAddresses = this.knownPeers.get(peerIdStr);
-    
+
     if (knownAddresses && knownAddresses.size > 0) {
       // Try dialing with known addresses first
-      const multiaddrs = Array.from(knownAddresses);
-      await this.node.dial(multiaddrs);
-      console.log(`Dialed trusted peer ${peerIdStr} using known addresses`);
-    } else {
+      for (const addr of knownAddresses) {
+        try {
+          await this.node.dial(addr);
+          console.log(`Dialed trusted peer ${peerIdStr} using known address ${addr.toString?.() ?? addr}`);
+          return;
+        } catch (error) {
+          console.log(`Failed dialing ${peerIdStr} via ${addr.toString?.() ?? addr}:`, error.message);
+        }
+      }
+    }
+
+    if (!knownAddresses || knownAddresses.size === 0) {
       // Fall back to dialing by peerId (will use peer discovery)
       const peerIdObj = typeof peerId === 'string' ? peerIdFromString(peerId) : peerId;
       await this.node.dial(peerIdObj);
@@ -497,6 +551,14 @@ async dialAllTrustedPeers() {
   if (!this.node || this.trustedPeers.size === 0) {
     return;
   }
+  meshLog('dialing trusted peers', Array.from(this.trustedPeers));
+  for (const peer of this.trustedPeers) {
+    try {
+      await this.dialPeer(peer);
+    } catch (err) {
+      console.log(`Failed dialing ${peer}:`, err.message);
+    }
+  }
 }
 
 async start() {
@@ -507,9 +569,15 @@ async start() {
     // Load trusted peers before starting the node
     await this.loadTrustedPeers();
 
+    const requestedPort = Number(process.env.LIBP2P_TCP_PORT ?? 0);
+    const listenAddress =
+      Number.isFinite(requestedPort) && requestedPort > 0
+        ? `/ip4/0.0.0.0/tcp/${requestedPort}`
+        : "/ip4/0.0.0.0/tcp/0";
+
     this.node = await createLibp2p({
       addresses: {
-        listen: ["/ip4/0.0.0.0/tcp/0"],
+        listen: [listenAddress],
       },
       privateKey: await this.getOrCreatePrivateKey(),
     });
@@ -524,15 +592,33 @@ async start() {
       this.onPeerDiscovery.bind(this)
     );
 
+    this.node.addEventListener("peer:connect", (evt) => {
+      try {
+        const remotePeer = evt.detail?.remotePeer?.toString?.() || evt.detail?.toString?.();
+        meshLog('peer connected', remotePeer);
+      } catch {
+        meshLog('peer connected');
+      }
+    });
+
+    this.node.addEventListener("peer:disconnect", (evt) => {
+      try {
+        const remotePeer = evt.detail?.remotePeer?.toString?.() || evt.detail?.toString?.();
+        meshLog('peer disconnected', remotePeer);
+      } catch {
+        meshLog('peer disconnected');
+      }
+    });
+
     // Listen for direct messages
     this.node.services.directMessage.addEventListener(
       directMessageEvent,
       this.onDirectMessage.bind(this)
     );
-    
+
     console.log('Node started, peer ID:', this.node.peerId.toString());
     console.log('Listening on:', this.node.getMultiaddrs().map(m => m.toString()));
-    
+
     // Try to dial all trusted peers on wake up to speed up connection
     await this.dialAllTrustedPeers();
   }

@@ -1,5 +1,85 @@
 #!/usr/bin/env bash
 # Connects Lotus daemons running on remote hosts so they directly peer with each other.
+# Usage:
+#   scripts/remote-filecoin-connect.sh [connect|listen|status]
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/remote-common.sh"
+
+declare -A LISTEN_ADDRS
+
+collect_addresses() {
+  LISTEN_ADDRS=()
+  for host in "${SERVERS[@]}"; do
+    local addr
+    addr=$(run_remote_script "${host}" env REMOTE_LOTUS_PATH="${REMOTE_LOTUS_PATH}" bash -s <<'EOF' | grep '^/ip' | head -n 1 || true
+set -euo pipefail
+env LOTUS_PATH="${REMOTE_LOTUS_PATH}" lotus net listen 2>/dev/null || true
+EOF
+)
+    if [[ -z "${addr}" ]]; then
+      log "[${host}] unable to read lotus net listen output"
+      continue
+    fi
+    LISTEN_ADDRS["${host}"]=${addr}
+    log "[${host}] listen ${addr}"
+  done
+}
+
+connect_pair() {
+  local source=$1
+  local target=$2
+  local target_addr=${LISTEN_ADDRS[$target]:-}
+  if [[ -z "${target_addr}" ]]; then
+    log "[${source}] missing target addr for ${target}"
+    return
+  fi
+  run_remote_script "${source}" env REMOTE_LOTUS_PATH="${REMOTE_LOTUS_PATH}" TARGET_ADDR="${target_addr}" bash -s <<'EOF'
+set -euo pipefail
+if env LOTUS_PATH="${REMOTE_LOTUS_PATH}" lotus net connect "${TARGET_ADDR}" >/dev/null 2>&1; then
+  echo "Connected ${TARGET_ADDR}"
+else
+  echo "Already connected or failed (${TARGET_ADDR})"
+fi
+EOF
+}
+
+status_host() {
+  local host=$1
+  run_remote_script "${host}" env REMOTE_LOTUS_PATH="${REMOTE_LOTUS_PATH}" bash -s <<'EOF'
+set -euo pipefail
+echo "---- $(hostname) peers ----"
+env LOTUS_PATH="${REMOTE_LOTUS_PATH}" lotus net peers | grep -E 'Peer|Addrs' -A1 || true
+EOF
+}
+
+ACTION=${1:-connect}
+
+case "${ACTION}" in
+  listen)
+    collect_addresses
+    ;;
+  connect)
+    collect_addresses
+    for src in "${SERVERS[@]}"; do
+      for dst in "${SERVERS[@]}"; do
+        [[ "${src}" == "${dst}" ]] && continue
+        connect_pair "${src}" "${dst}"
+      done
+    done
+    ;;
+  status)
+    for_each_host status_host
+    ;;
+  *)
+    echo "Usage: $(basename "$0") [connect|listen|status]"
+    exit 1
+    ;;
+esac
+#!/usr/bin/env bash
+# Connects Lotus daemons running on remote hosts so they directly peer with each other.
 
 set -euo pipefail
 
