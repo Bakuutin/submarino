@@ -55,12 +55,6 @@ Data lives under `.llamaindex/agents`; add your own JSON via `-i`.
 - **Bootstrap**: Optional dial to `/dnsaddr/sg1.bootstrap.libp2p.io/...` plus auto-dial of known/trusted peers.
 - **Failure handling**: Timeouts on dialing and streaming; inbox kept in-memory per node; key material persisted to `.keys/peer-id.json`.
 
-## Environment Variables
-- `PORT` — HTTP server port (default `4242`)
-- `KEY_PATH` — Directory for libp2p key material (default `./.keys`)
-- `FLUENCE_PRIVATE_KEY`, `LIBP2P_PEER_MULTIADDR`, etc., when targeting Fluence/remote peers
-
-
 ## Roadmap (next passes)
 - Intent mesh broadcaster + capability negotiation (multi-hop routing).
 - Encrypted backup daemon with trust scoring and heal/restore flows.
