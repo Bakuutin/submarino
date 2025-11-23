@@ -31,37 +31,6 @@ import { multiaddr } from '@multiformats/multiaddr'
 
 
 
-
-export function stdinToStream(stream) {
-  const lp = lpStream(stream);
-
-  process.stdin.addListener("data", (buf) => {
-    try {
-      lp.write(buf);
-    } catch (error) {
-      return;
-    }
-  });
-}
-
-export function streamToConsole(stream) {
-  const lp = lpStream(stream);
-
-  Promise.resolve().then(async () => {
-    while (true) {
-      try {
-        const message = await lp.read();
-        console.log(
-          "> " + uint8ArrayToString(message.subarray()).replace("\n", "")
-        );
-      } catch (error) {
-        return;
-      }
-    }
-  });
-}
-
-// DirectMessage service constants
 const DIRECT_MESSAGE_PROTOCOL = '/universal-connectivity/dm/1.0.0';
 const MIME_TEXT_PLAIN = 'text/plain';
 const dmClientVersion = '0.0.1';
@@ -550,8 +519,8 @@ async start() {
       addresses: {
         listen: [
           '/webrtc-direct',
-          '/ip4/0.0.0.0/tcp/0',
-          '/ip4/0.0.0.0/udp/0/quic-v1'
+          '/ip4/0.0.0.0/tcp/4242',
+          '/ip4/0.0.0.0/udp/2001/quic-v1'
         ],
       },
       privateKey: await this.getOrCreatePrivateKey(),
