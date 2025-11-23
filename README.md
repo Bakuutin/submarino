@@ -30,7 +30,7 @@ npm run dev            # start MCP/libp2p node locally
 Edit `.env` before running:
 - `PORT` — HTTP/MCP port (default `4242`). Open inbound on your server firewall.
 - `KEY_PATH` — where peer keys and `trustedPeers.json` live. Persist this directory so identity survives redeploys.
-- `FILECOIN_*` — only needed if you experiment with the Filecoin snapshot helper (disabled by default).
+- `FILECOIN_*` — Filecoin helper is enabled by default. Set `FILECOIN_RPC_URL`/`FILECOIN_RPC_TOKEN` to point at your Lotus endpoint, or leave defaults to auto-spawn a local Lotus lite daemon if available.
 
 ### Talk to the MCP node
 The MCP server lives at `http://localhost:${PORT}/mcp` and exposes tools for messaging and trust management:
@@ -84,7 +84,7 @@ Data lives under `.llamaindex/agents`; add your own JSON via `-i`.
   WantedBy=multi-user.target
   ```
   Reload systemd, then `systemctl enable --now submarino`.
-- **Backups**: Persist the `KEY_PATH` directory (default `.keys/mcp`) and `trustedPeers.json`. Restoring these preserves identity/trust. Filecoin snapshot helper lives in `dist/filecoin.js` if you want to wire it in.
+- **Backups**: Persist the `KEY_PATH` directory (default `.keys/mcp`) and `trustedPeers.json`. Restoring these preserves identity/trust. Filecoin snapshots are attempted automatically at startup; ensure your RPC/lotus binary is reachable.
 
 ## Roadmap (next passes)
 - Intent mesh broadcaster + capability negotiation (multi-hop routing).

@@ -3,6 +3,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import express from 'express';
 import { SubmarinoNode } from './submarino.js';
 import { createServer } from './mcp.js';
+import { FilecoinNodeManager } from './filecoin.js';
 
 // Parse command line arguments for --hook flag
 let hookUrl = null;
@@ -42,6 +43,51 @@ app.use(express.json());
 const keyPath = process.env.KEY_PATH || '.keys/mcp';
 const submarinoNode = new SubmarinoNode(keyPath, messageCallback);
 await submarinoNode.start();
+
+// Initialize Filecoin helper (auto-spawns Lotus lite by default if no RPC is provided)
+const filecoinManager = new FilecoinNodeManager();
+
+async function initializeFilecoinIntegration() {
+  try {
+    await filecoinManager.start();
+  } catch (error) {
+    console.warn('[filecoin] Failed to initialize node:', error.message);
+    return;
+  }
+
+  try {
+    const status = await filecoinManager.getStatus();
+    if (status.ready) {
+      console.log(`[filecoin] Connected to RPC ${status.rpcUrl} (height: ${status.height ?? 'unknown'})`);
+    } else {
+      console.warn('[filecoin] RPC status unknown:', status.error);
+    }
+  } catch (error) {
+    console.warn('[filecoin] Unable to read status:', error.message);
+  }
+
+  try {
+    await filecoinManager.storeDatabaseSnapshot(
+      {
+        peerId: submarinoNode.peerId,
+        timestamp: new Date().toISOString(),
+        trustedPeers: Array.from(submarinoNode.trustedPeers ?? []),
+      },
+      { fileName: 'startup-snapshot.json' }
+    );
+  } catch (error) {
+    console.warn('[filecoin] Unable to push initial snapshot:', error.message);
+  }
+}
+
+initializeFilecoinIntegration();
+
+['SIGINT', 'SIGTERM'].forEach((signal) => {
+  process.once(signal, async () => {
+    await filecoinManager.stop().catch(() => {});
+    process.exit(0);
+  });
+});
 
 const mcpServer = createServer(submarinoNode);
 
