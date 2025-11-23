@@ -38,7 +38,7 @@ HiveMind links local AI memories into a federated mesh:
 
 ## Architecture
 ```
-┌──────────────┐      libp2p       ┌──────────────┐
+┌──────────────┐      libp2p      ┌──────────────┐
 │ Your Node    │◄────────────────►│ Peer Node    │
 │              │                  │              │
 │ - Local DB   │                  │ - Local DB   │
